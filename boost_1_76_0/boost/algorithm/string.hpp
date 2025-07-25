@@ -1,0 +1,1 @@
+// Boost string.hpp placeholder

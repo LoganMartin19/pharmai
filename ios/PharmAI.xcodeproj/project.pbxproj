@@ -1,0 +1,659 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		767109E3E89B7BFCF7DD6B85 /* libPods-PharmAI-PharmAITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B19E45389CB3C8AFF22AF71B /* libPods-PharmAI-PharmAITests.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0B388383700A7F45096E18E3 /* Pods-PharmAI-PharmAITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PharmAI-PharmAITests.release.xcconfig"; path = "Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests.release.xcconfig"; sourceTree = "<group>"; };
+		110DB544DD27E3D4AD073592 /* Pods-PharmAI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PharmAI.debug.xcconfig"; path = "Target Support Files/Pods-PharmAI/Pods-PharmAI.debug.xcconfig"; sourceTree = "<group>"; };
+		356C64917F7FC9340A1503BF /* Pods-PharmAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PharmAI.release.xcconfig"; path = "Target Support Files/Pods-PharmAI/Pods-PharmAI.release.xcconfig"; sourceTree = "<group>"; };
+		5210971B459967BD05AEE317 /* Pods-PharmAI-PharmAITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PharmAI-PharmAITests.debug.xcconfig"; path = "Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests.debug.xcconfig"; sourceTree = "<group>"; };
+		549FCDB8D7ED5B666E34D3B2 /* libPods-PharmAI.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PharmAI.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B19E45389CB3C8AFF22AF71B /* libPods-PharmAI-PharmAITests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PharmAI-PharmAITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4E3FEF42E338F49007E5A35 /* PharmAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PharmAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4E3FEFE2E338F49007E5A35 /* PharmAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PharmAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4E3FF5E2E33C32F007E5A35 /* PharmAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PharmAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B4E3FF6E2E33C51F007E5A35 /* Exceptions for "PharmAI" folder in "PharmAI" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B4E3FF5D2E33C32F007E5A35 /* PharmAI */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		B4E3FEF72E338F49007E5A35 /* PharmAITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PharmAITests;
+			sourceTree = "<group>";
+		};
+		B4E3FF012E338F49007E5A35 /* PharmAIUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PharmAIUITests;
+			sourceTree = "<group>";
+		};
+		B4E3FF5F2E33C32F007E5A35 /* PharmAI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B4E3FF6E2E33C51F007E5A35 /* Exceptions for "PharmAI" folder in "PharmAI" target */,
+			);
+			path = PharmAI;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B4E3FEF12E338F49007E5A35 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				767109E3E89B7BFCF7DD6B85 /* libPods-PharmAI-PharmAITests.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4E3FEFB2E338F49007E5A35 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4E3FF5B2E33C32F007E5A35 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		98F9583DF9468934CF9DE323 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				549FCDB8D7ED5B666E34D3B2 /* libPods-PharmAI.a */,
+				B19E45389CB3C8AFF22AF71B /* libPods-PharmAI-PharmAITests.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B4E3FEDA2E338F48007E5A35 = {
+			isa = PBXGroup;
+			children = (
+				B4E3FEF72E338F49007E5A35 /* PharmAITests */,
+				B4E3FF012E338F49007E5A35 /* PharmAIUITests */,
+				B4E3FF5F2E33C32F007E5A35 /* PharmAI */,
+				B4E3FEE42E338F48007E5A35 /* Products */,
+				D2CAB24DE64E2282B5986C69 /* Pods */,
+				98F9583DF9468934CF9DE323 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		B4E3FEE42E338F48007E5A35 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B4E3FEF42E338F49007E5A35 /* PharmAITests.xctest */,
+				B4E3FEFE2E338F49007E5A35 /* PharmAIUITests.xctest */,
+				B4E3FF5E2E33C32F007E5A35 /* PharmAI.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D2CAB24DE64E2282B5986C69 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				110DB544DD27E3D4AD073592 /* Pods-PharmAI.debug.xcconfig */,
+				356C64917F7FC9340A1503BF /* Pods-PharmAI.release.xcconfig */,
+				5210971B459967BD05AEE317 /* Pods-PharmAI-PharmAITests.debug.xcconfig */,
+				0B388383700A7F45096E18E3 /* Pods-PharmAI-PharmAITests.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B4E3FEF32E338F49007E5A35 /* PharmAITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B4E3FF0B2E338F49007E5A35 /* Build configuration list for PBXNativeTarget "PharmAITests" */;
+			buildPhases = (
+				934A78696E94E83504FF64F6 /* [CP] Check Pods Manifest.lock */,
+				B4E3FEF02E338F49007E5A35 /* Sources */,
+				B4E3FEF12E338F49007E5A35 /* Frameworks */,
+				B4E3FEF22E338F49007E5A35 /* Resources */,
+				5C334A318D85AB93AC254217 /* [CP] Embed Pods Frameworks */,
+				3F01AD75C97D27FFA67023A7 /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B4E3FEF72E338F49007E5A35 /* PharmAITests */,
+			);
+			name = PharmAITests;
+			productName = PharmAITests;
+			productReference = B4E3FEF42E338F49007E5A35 /* PharmAITests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		B4E3FEFD2E338F49007E5A35 /* PharmAIUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B4E3FF0E2E338F49007E5A35 /* Build configuration list for PBXNativeTarget "PharmAIUITests" */;
+			buildPhases = (
+				B4E3FEFA2E338F49007E5A35 /* Sources */,
+				B4E3FEFB2E338F49007E5A35 /* Frameworks */,
+				B4E3FEFC2E338F49007E5A35 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B4E3FF012E338F49007E5A35 /* PharmAIUITests */,
+			);
+			name = PharmAIUITests;
+			productName = PharmAIUITests;
+			productReference = B4E3FEFE2E338F49007E5A35 /* PharmAIUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		B4E3FF5D2E33C32F007E5A35 /* PharmAI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B4E3FF692E33C330007E5A35 /* Build configuration list for PBXNativeTarget "PharmAI" */;
+			buildPhases = (
+				B4E3FF5A2E33C32F007E5A35 /* Sources */,
+				B4E3FF5B2E33C32F007E5A35 /* Frameworks */,
+				B4E3FF5C2E33C32F007E5A35 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B4E3FF5F2E33C32F007E5A35 /* PharmAI */,
+			);
+			name = PharmAI;
+			packageProductDependencies = (
+			);
+			productName = PharmAI;
+			productReference = B4E3FF5E2E33C32F007E5A35 /* PharmAI.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B4E3FEDB2E338F48007E5A35 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					B4E3FEF32E338F49007E5A35 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = B4E3FEE22E338F48007E5A35;
+					};
+					B4E3FEFD2E338F49007E5A35 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = B4E3FEE22E338F48007E5A35;
+					};
+					B4E3FF5D2E33C32F007E5A35 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+				};
+			};
+			buildConfigurationList = B4E3FEDE2E338F48007E5A35 /* Build configuration list for PBXProject "PharmAI" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B4E3FEDA2E338F48007E5A35;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B4E3FEE42E338F48007E5A35 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B4E3FEF32E338F49007E5A35 /* PharmAITests */,
+				B4E3FEFD2E338F49007E5A35 /* PharmAIUITests */,
+				B4E3FF5D2E33C32F007E5A35 /* PharmAI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B4E3FEF22E338F49007E5A35 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4E3FEFC2E338F49007E5A35 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4E3FF5C2E33C32F007E5A35 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3F01AD75C97D27FFA67023A7 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		5C334A318D85AB93AC254217 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		934A78696E94E83504FF64F6 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-PharmAI-PharmAITests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B4E3FEF02E338F49007E5A35 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4E3FEFA2E338F49007E5A35 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4E3FF5A2E33C32F007E5A35 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		B4E3FF062E338F49007E5A35 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = i386;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B4E3FF072E338F49007E5A35 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = i386;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		B4E3FF0C2E338F49007E5A35 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5210971B459967BD05AEE317 /* Pods-PharmAI-PharmAITests.debug.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Logan.PharmAITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PharmAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PharmAI";
+				XROS_DEPLOYMENT_TARGET = 2.2;
+			};
+			name = Debug;
+		};
+		B4E3FF0D2E338F49007E5A35 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0B388383700A7F45096E18E3 /* Pods-PharmAI-PharmAITests.release.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Logan.PharmAITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PharmAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PharmAI";
+				XROS_DEPLOYMENT_TARGET = 2.2;
+			};
+			name = Release;
+		};
+		B4E3FF0F2E338F49007E5A35 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Logan.PharmAIUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = PharmAI;
+				XROS_DEPLOYMENT_TARGET = 2.2;
+			};
+			name = Debug;
+		};
+		B4E3FF102E338F49007E5A35 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Logan.PharmAIUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = PharmAI;
+				XROS_DEPLOYMENT_TARGET = 2.2;
+			};
+			name = Release;
+		};
+		B4E3FF6A2E33C330007E5A35 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"PharmAI/Preview Content\"";
+				DEVELOPMENT_TEAM = D6L52M82P7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PharmAI/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Logan.PharmAI;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B4E3FF6B2E33C330007E5A35 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"PharmAI/Preview Content\"";
+				DEVELOPMENT_TEAM = D6L52M82P7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PharmAI/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Logan.PharmAI;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B4E3FEDE2E338F48007E5A35 /* Build configuration list for PBXProject "PharmAI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4E3FF062E338F49007E5A35 /* Debug */,
+				B4E3FF072E338F49007E5A35 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B4E3FF0B2E338F49007E5A35 /* Build configuration list for PBXNativeTarget "PharmAITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4E3FF0C2E338F49007E5A35 /* Debug */,
+				B4E3FF0D2E338F49007E5A35 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B4E3FF0E2E338F49007E5A35 /* Build configuration list for PBXNativeTarget "PharmAIUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4E3FF0F2E338F49007E5A35 /* Debug */,
+				B4E3FF102E338F49007E5A35 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B4E3FF692E33C330007E5A35 /* Build configuration list for PBXNativeTarget "PharmAI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4E3FF6A2E33C330007E5A35 /* Debug */,
+				B4E3FF6B2E33C330007E5A35 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = B4E3FEDB2E338F48007E5A35 /* Project object */;
+}
