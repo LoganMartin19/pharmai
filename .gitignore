@@ -1,0 +1,38 @@
+# macOS system files
+.DS_Store
+
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+ios/build/
+android/app/build/
+build/
+
+# Xcode specific
+*.xcworkspace
+*.xcuserdata/
+*.xcuserstate
+DerivedData/
+*.pbxuser
+
+# Pods and frameworks
+ios/Pods/
+
+# Environment files
+.env
+.env.*
+
+# Metro
+.expo/
+.expo-shared/
+__generated__/
+
+# Misc
+*.swp
+*.swo
