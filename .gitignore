@@ -36,3 +36,16 @@ __generated__/
 # Misc
 *.swp
 *.swo
+
+# CocoaPods
+ios/Pods/
+ios/Podfile.lock
+ios/Pods/**/*
+
+# Prevent committing large Hermes files or frameworks
+*.xcframework/
+*.framework/
+*.a
+*.o
+*.ipa
+*.dSYM
