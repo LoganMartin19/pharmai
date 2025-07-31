@@ -1,25 +1,53 @@
-platform :ios, '13.0'
+platform :ios, '16.0'
 
 require_relative '../node_modules/react-native/scripts/react_native_pods'
-require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
 
 target 'PharmAI' do
   config = use_native_modules!
 
-  # ✅ Use your local Boost
-  pod 'boost', :path => '../boost_1_76_0'
-
   use_react_native!(
     :path => config[:reactNativePath],
-    :hermes_enabled => true,
-    :fabric_enabled => false
+    :hermes_enabled => false,
+    :fabric_enabled => false,
+    :new_arch_enabled => false
   )
 
   target 'PharmAITests' do
     inherit! :complete
   end
 
+  # Post-install adjustments
   post_install do |installer|
     react_native_post_install(installer)
+
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      end
+    end
+
+    # ✅ Patch RCT-Folly clockid_t typedef issue
+    folly_time = "Pods/RCT-Folly/folly/portability/Time.h"
+    if File.exist?(folly_time)
+      text = File.read(folly_time)
+      patched = text.gsub(
+        "typedef uint8_t clockid_t;",
+        "#ifndef __clockid_t_defined\n#define __clockid_t_defined\ntypedef uint8_t clockid_t;\n#endif"
+      )
+      File.write(folly_time, patched)
+    end
+
+    # ✅ Patch resources script to avoid sandbox error
+    installer.aggregate_targets.each do |target|
+      script_path = "Pods/Target Support Files/#{target.name}/#{target.name}-resources.sh"
+      if File.exist?(script_path)
+        text = File.read(script_path)
+        text.gsub!(
+          /resources_to_copy="\$\{TARGET_BUILD_DIR\}\/resources-to-copy-\$\{TARGETNAME\}.txt"/,
+          'resources_to_copy="${PROJECT_TEMP_DIR}/resources-to-copy-${TARGETNAME}.txt"\ntouch "$resources_to_copy" 2>/dev/null || true\n: > "$resources_to_copy"'
+        )
+        File.write(script_path, text)
+      end
+    end
   end
 end

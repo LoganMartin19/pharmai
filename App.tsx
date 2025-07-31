@@ -1,12 +1,20 @@
-// App.tsx
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './src/navigation/AppNavigator';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from './src/screens/HomeScreen';
+import ScanScreen from './src/screens/ScanScreen'; // ✅ Add this if it exists
 
-export default function App() {
+const Stack = createNativeStackNavigator();
+
+const App = () => {
   return (
     <NavigationContainer>
-      <AppNavigator />
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Scan" component={ScanScreen} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
-}
+};
+
+export default App;
