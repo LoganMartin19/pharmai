@@ -2,6 +2,8 @@ platform :ios, '16.0'
 
 require_relative '../node_modules/react-native/scripts/react_native_pods'
 
+use_frameworks! :linkage => :static
+
 target 'PharmAI' do
   config = use_native_modules!
 
@@ -12,21 +14,54 @@ target 'PharmAI' do
     :new_arch_enabled => false
   )
 
+  # ✅ Fix gRPC/JSI-related linker issues
+  pod 'gRPC-Core', :modular_headers => true
+  pod 'gRPC-C++', :modular_headers => true
+  pod 'gRPC', :modular_headers => true
+  pod 'abseil', :modular_headers => true
+  pod 'BoringSSL-GRPC', :modular_headers => true
+  pod 'leveldb-library', :modular_headers => true
+
   target 'PharmAITests' do
     inherit! :complete
   end
 
-  # Post-install adjustments
   post_install do |installer|
     react_native_post_install(installer)
 
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+        # 🧱 General build settings
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
+
+        # 🧩 Fix missing system libraries
+        config.build_settings['OTHER_LDFLAGS'] ||= '$(inherited)'
+	ldflags = config.build_settings['OTHER_LDFLAGS']
+	ldflags_array = ldflags.is_a?(String) ? [ldflags] : ldflags
+	ldflags_array += ['-lc++', '-lc++abi', '-licucore', '-lz']
+	config.build_settings['OTHER_LDFLAGS'] = ldflags_array	
+      end
+
+      # ✅ Fix for RNReanimated
+      if target.name == 'RNReanimated'
+        target.build_configurations.each do |config|
+          config.build_settings['USE_HERMES'] = 'NO'
+          config.build_settings['DEFINES_MODULE'] = 'YES'
+        end
+      end
+
+      # ✅ Fix for RNScreens
+      if target.name == 'RNScreens'
+        target.build_configurations.each do |config|
+          config.build_settings['DEFINES_MODULE'] = 'YES'
+        end
       end
     end
 
-    # ✅ Patch RCT-Folly clockid_t typedef issue
+    # 🩹 Optional fix: RCT-Folly `clockid_t` type redefinition
     folly_time = "Pods/RCT-Folly/folly/portability/Time.h"
     if File.exist?(folly_time)
       text = File.read(folly_time)
@@ -35,19 +70,6 @@ target 'PharmAI' do
         "#ifndef __clockid_t_defined\n#define __clockid_t_defined\ntypedef uint8_t clockid_t;\n#endif"
       )
       File.write(folly_time, patched)
-    end
-
-    # ✅ Patch resources script to avoid sandbox error
-    installer.aggregate_targets.each do |target|
-      script_path = "Pods/Target Support Files/#{target.name}/#{target.name}-resources.sh"
-      if File.exist?(script_path)
-        text = File.read(script_path)
-        text.gsub!(
-          /resources_to_copy="\$\{TARGET_BUILD_DIR\}\/resources-to-copy-\$\{TARGETNAME\}.txt"/,
-          'resources_to_copy="${PROJECT_TEMP_DIR}/resources-to-copy-${TARGETNAME}.txt"\ntouch "$resources_to_copy" 2>/dev/null || true\n: > "$resources_to_copy"'
-        )
-        File.write(script_path, text)
-      end
     end
   end
 end

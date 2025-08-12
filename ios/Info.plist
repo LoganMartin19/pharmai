@@ -13,7 +13,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
-	<string>This app uses the camera to scan barcodes.</string>
+	<string>This app scans medication labels to prefill reminders.</string>
 	<key>RCTNewArchEnabled</key>
 	<false/>
 	<key>UILaunchStoryboardName</key>
@@ -30,5 +30,10 @@
 	<false/>
 	<key>CFBundleExecutable</key>
 	<string>PharmAI</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Foundation.ttf</string>
+		<string>Ionicons.ttf</string>
+	</array>
 </dict>
 </plist>

@@ -1,20 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { RemindersProvider } from './src/context/RemindersContext';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from './src/screens/HomeScreen';
-import ScanScreen from './src/screens/ScanScreen'; // ✅ Add this if it exists
+import MainNavigator from './src/navigation/MainNavigator';
+import { UserProvider } from './src/context/UserContext';
 
-const Stack = createNativeStackNavigator();
+// ✅ Import notification helpers
+import { requestNotificationPermission, setupNotificationChannel } from './src/utils/notifications';
 
-const App = () => {
+export default function App() {
+  useEffect(() => {
+    // Ask for notification permission & prepare Android channel
+    requestNotificationPermission();
+    setupNotificationChannel();
+  }, []);
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Scan" component={ScanScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <UserProvider>
+      <RemindersProvider>
+        <NavigationContainer>
+          <MainNavigator />
+        </NavigationContainer>
+      </RemindersProvider>
+    </UserProvider>
   );
-};
-
-export default App;
+}

@@ -11,7 +11,7 @@
 {
   NSURL *jsCodeLocation;
 
-    jsCodeLocation = [NSURL URLWithString:@"http://localhost:8081/index.bundle?platform=ios"];
+    jsCodeLocation = [NSURL URLWithString:@"http://192.168.1.175:8081/index.bundle?platform=ios"];
 
   RCTBridge *bridge = [[RCTBridge alloc] initWithBundleURL:jsCodeLocation
                                             moduleProvider:nil
@@ -27,6 +27,8 @@
   rootViewController.view = rootView;
   self.window.rootViewController = rootViewController;
   [self.window makeKeyAndVisible];
+
+  //[ExpoModulesProvider registerModules];
 
   return YES;
 }
