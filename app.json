@@ -1,4 +1,7 @@
 {
-    "name": "PharmAI",
-    "displayName": "PharmAI"
+  "name": "PharmAI",
+  "displayName": "PharmAI",
+  "ios": {
+    "bundleIdentifier": "com.anonymous.pharmai"
   }
+}
