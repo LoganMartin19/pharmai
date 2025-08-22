@@ -5,13 +5,20 @@
 #import <React/RCTLinkingManager.h>
 #import <UIKit/UIKit.h>
 
+// ✅ Import Firebase the ObjC way
+#import <Firebase.h>
+
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  NSURL *jsCodeLocation;
+  // ✅ Configure Firebase early
+  if ([FIRApp defaultApp] == nil) {
+    [FIRApp configure];
+  }
 
-    jsCodeLocation = [NSURL URLWithString:@"http://192.168.1.175:8081/index.bundle?platform=ios"];
+  NSURL *jsCodeLocation;
+  jsCodeLocation = [NSURL URLWithString:@"http://192.168.1.175:8081/index.bundle?platform=ios"];
 
   RCTBridge *bridge = [[RCTBridge alloc] initWithBundleURL:jsCodeLocation
                                             moduleProvider:nil
@@ -27,8 +34,6 @@
   rootViewController.view = rootView;
   self.window.rootViewController = rootViewController;
   [self.window makeKeyAndVisible];
-
-  //[ExpoModulesProvider registerModules];
 
   return YES;
 }

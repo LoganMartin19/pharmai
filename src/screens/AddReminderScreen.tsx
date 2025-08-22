@@ -22,45 +22,68 @@ import PillLookPicker from '../components/PillLookPicker';
 import { RootStackParamList } from '../navigation/MainNavigator';
 
 type Freq = 'Once daily' | 'Twice daily' | 'Three times daily';
+type R = RouteProp<RootStackParamList, 'AddReminder'>;
 
 function parseFirstTimeFromPrefill(time?: string | string[]) {
   if (!time) return undefined;
   const raw = Array.isArray(time) ? time[0] : time;
   const first = String(raw).split(',')[0].trim();
   const [h, m] = first.split(':').map((n) => parseInt(n, 10));
-  if (Number.isNaN(h) || Number.isNaN(m)) return undefined;
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return undefined;
   const d = new Date();
   d.setHours(h, m, 0, 0);
   return d;
 }
 
 export default function AddReminderScreen() {
-  const { addReminder } = useReminders();
+  const route = useRoute<R>();
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<RootStackParamList, 'AddReminder'>>();
+  const { addReminder, updateReminder } = useReminders();
+
+  // If we navigated here to EDIT an existing medication
+  const original = route.params?.medication;
+  const editing = !!original;
+
+  // If we navigated here from Scan to PREFILL fields
   const prefill = route.params?.prefill ?? {};
 
-  // -------- Initial state (prefill-aware) --------
-  const [medicationName, setMedicationName] = useState(prefill.name ?? '');
-  const [selectedDosage, setSelectedDosage] = useState(prefill.dosage ?? '1 tablet');
+  // -------- Initial state (edit has priority, then prefill) --------
+  const [medicationName, setMedicationName] = useState(
+    original?.name ?? (prefill.name ?? '')
+  );
+  const [selectedDosage, setSelectedDosage] = useState(
+    original?.dosage ?? (prefill.dosage ?? '1 tablet')
+  );
   const [selectedFrequency, setSelectedFrequency] = useState<Freq>(
-    (prefill.frequency as Freq) ?? 'Once daily'
+    (original?.frequency as Freq) ??
+      ((prefill.frequency as Freq) ?? 'Once daily')
   );
   const [hoursApart, setHoursApart] = useState('4');
 
-  const initialStart = useMemo(
-    () => parseFirstTimeFromPrefill(prefill.time) ?? new Date(),
-    [prefill.time]
-  );
+  const initialStart = useMemo(() => {
+    // Use the first time from original.time, then prefill.time, else now
+    return (
+      parseFirstTimeFromPrefill(original?.time) ??
+      parseFirstTimeFromPrefill(prefill.time) ??
+      new Date()
+    );
+  }, [original?.time, prefill.time]);
+
   const [startTime, setStartTime] = useState(initialStart);
 
   const [endDate, setEndDate] = useState(
-    prefill.endDate ? new Date(prefill.endDate) : new Date()
+    original?.endDate
+      ? new Date(original.endDate)
+      : prefill.endDate
+      ? new Date(prefill.endDate)
+      : new Date()
   );
-  const [repeatPrescription, setRepeatPrescription] = useState(!!prefill.repeatPrescription);
+  const [repeatPrescription, setRepeatPrescription] = useState(
+    original?.repeatPrescription ?? !!prefill.repeatPrescription
+  );
 
   const [pillStyle, setPillStyle] = useState<PillStyle>(
-    prefill.pillStyle ?? { shape: 'capsule', color: '#2F80ED' }
+    original?.pillStyle ?? (prefill.pillStyle ?? { shape: 'capsule', color: '#2F80ED' })
   );
 
   // pickers
@@ -94,7 +117,7 @@ export default function AddReminderScreen() {
     return times;
   };
 
-  const saveReminder = () => {
+  const saveReminder = async () => {
     if (!medicationName.trim()) {
       Alert.alert('Missing Info', 'Please enter a medication name');
       return;
@@ -102,21 +125,29 @@ export default function AddReminderScreen() {
 
     const times = generateDoseTimes();
 
-    const item: Medication = {
-      id: Date.now().toString(),
+    const payload: Medication = {
+      id: editing ? original!.id : Date.now().toString(),   // keep the same id when editing
       name: medicationName.trim(),
       dosage: selectedDosage,
       frequency: selectedFrequency,
       time: times.join(', '),
       instructions: `Take ${selectedDosage}, ${selectedFrequency.toLowerCase()}`,
       repeatPrescription,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate:
+        editing
+          ? (original?.startDate ?? new Date().toISOString().split('T')[0])
+          : new Date().toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
-      pillStyle,               // ✅ persist chosen look
-      history: [],
+      pillStyle,
+      history: editing ? (original?.history ?? []) : [],    // preserve history on edit
     };
 
-    addReminder(item);
+    if (editing) {
+      await updateReminder(payload); // update existing (no duplicate)
+    } else {
+      await addReminder(payload);    // create new
+    }
+
     navigation.goBack();
   };
 
@@ -130,7 +161,7 @@ export default function AddReminderScreen() {
   return (
     <SafeLayout>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <Text style={styles.title}>Add Reminder</Text>
+        <Text style={styles.title}>{editing ? 'Edit Reminder' : 'Add Reminder'}</Text>
 
         <Text style={styles.label}>Medication Name</Text>
         <TextInput
@@ -239,7 +270,7 @@ export default function AddReminderScreen() {
         </View>
 
         <Pressable style={styles.saveButton} onPress={saveReminder}>
-          <Text style={styles.saveButtonText}>Save</Text>
+          <Text style={styles.saveButtonText}>{editing ? 'Save Changes' : 'Save'}</Text>
         </Pressable>
       </ScrollView>
 

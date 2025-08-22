@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5BFBDF31ACCA12108BFC80DF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 670B0D6D80C26A8C262BCC16 /* PrivacyInfo.xcprivacy */; };
+		B40E10CE2E4F9304007D921B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B40E10CD2E4F9304007D921B /* GoogleService-Info.plist */; };
 		B47A89E72E3B747A00D9D059 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = B47A89DB2E3B747A00D9D059 /* AppDelegate.mm */; };
 		B47A89E82E3B747A00D9D059 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = B47A89E52E3B747A00D9D059 /* main.m */; };
 		B47A89E92E3B747A00D9D059 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B47A89DC2E3B747A00D9D059 /* Assets.xcassets */; };
@@ -23,6 +24,7 @@
 		64FB96591A8FF6E2290388C5 /* Pods-PharmAI-PharmAITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PharmAI-PharmAITests.debug.xcconfig"; path = "Target Support Files/Pods-PharmAI-PharmAITests/Pods-PharmAI-PharmAITests.debug.xcconfig"; sourceTree = "<group>"; };
 		670B0D6D80C26A8C262BCC16 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		95DC838B38415BC2E4710B04 /* Pods_PharmAI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PharmAI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B40E10CD2E4F9304007D921B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		B45C92572E440A2C00012612 /* absl.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = absl.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B45C92592E440A5300012612 /* grpc.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = grpc.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B45C925B2E440A5800012612 /* grpcpp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = grpcpp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -283,6 +285,7 @@
 		B4E3FEDA2E338F48007E5A35 = {
 			isa = PBXGroup;
 			children = (
+				B40E10CD2E4F9304007D921B /* GoogleService-Info.plist */,
 				B41DDAF32E46A60F005869D0 /* RNFonts 2 */,
 				B47A89DA2E3B747A00D9D059 /* AppDelegate.h */,
 				B47A89DB2E3B747A00D9D059 /* AppDelegate.mm */,
@@ -654,6 +657,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5BFBDF31ACCA12108BFC80DF /* PrivacyInfo.xcprivacy in Resources */,
+				B40E10CE2E4F9304007D921B /* GoogleService-Info.plist in Resources */,
 				B47A89E92E3B747A00D9D059 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

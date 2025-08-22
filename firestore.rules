@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    // Caregiver is allowed if the patient has users/{patientUid}/careLinks/{caregiverUid}.role == "caregiver"
+    function isCaregiverFor(patientUid) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(patientUid)/careLinks/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(patientUid)/careLinks/$(request.auth.uid)).data.role == "caregiver";
+    }
+
+    match /users/{uid} {
+      // Patient or linked caregiver can READ the user doc
+      allow read: if isOwner(uid) || isCaregiverFor(uid);
+      // Only the patient can WRITE their user doc
+      allow write: if isOwner(uid);
+
+      // Reminders: patient can read/write; linked caregiver can read
+      match /reminders/{rid} {
+        allow read: if isOwner(uid) || isCaregiverFor(uid);
+        allow write: if isOwner(uid);
+      }
+
+      // Care links & tokens managed by the owner only
+      match /careLinks/{cid} {
+        allow read, write: if isOwner(uid);
+      }
+      match /fcmTokens/{tid} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // 👇 NEW: pending alerts created by the PATIENT app for backend processing
+      match /carePendingAlerts/{aid} {
+        // App writes these when a dose notification fires and isn’t taken yet
+        allow create: if isOwner(uid);
+
+        // Keep private to the patient app (backend uses Admin SDK, bypassing rules)
+        allow read: if isOwner(uid);
+
+        // Allow the patient app to clean up its own alerts if you add UI to dismiss
+        allow update, delete: if isOwner(uid);
+      }
+    }
+
+    // Care invites: any signed-in user can create/consume; no public reads
+    match /careInvites/{inviteId} {
+      allow create, update, delete: if isSignedIn();
+      allow read: if false;
+    }
+  }
+}

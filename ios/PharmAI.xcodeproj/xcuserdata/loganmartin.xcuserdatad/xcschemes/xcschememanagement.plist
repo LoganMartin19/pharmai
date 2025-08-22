@@ -12,12 +12,12 @@
 		<key>PharmAITests.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>99</integer>
+			<integer>108</integer>
 		</dict>
 		<key>PharmAIUITests.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>98</integer>
+			<integer>109</integer>
 		</dict>
 	</dict>
 	<key>SuppressBuildableAutocreation</key>

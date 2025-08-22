@@ -4,10 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import notifee, { TimestampTrigger, TriggerType, RepeatFrequency, AndroidImportance, AndroidCategory } from '@notifee/react-native';
 
 import { Medication } from '../types/Medication';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
 
 // ---- Types & Context ----
 type RemindersContextType = {
@@ -36,7 +35,6 @@ async function clearNotificationIds(reminderId: string) {
 // ---- Time parsing & trigger building ----
 function parseTimesCSV(times?: string): { hour: number; minute: number }[] {
   if (!times) return [];
-  // accepts "08:00,20:00" or "08:00, 20:00"
   return times
     .split(',')
     .map(s => s.trim())
@@ -48,16 +46,22 @@ function parseTimesCSV(times?: string): { hour: number; minute: number }[] {
     .filter(Boolean) as { hour: number; minute: number }[];
 }
 
+/** Build array of HH:mm strings from CSV */
+function csvToArray(times?: string): string[] {
+  return parseTimesCSV(times).map(
+    ({ hour, minute }) => `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+  );
+}
+
 /**
  * Create daily repeating triggers for each HH:mm.
- * We use TimestampTrigger + RepeatFrequency.DAILY for cross‑platform reliability.
  */
-function buildDailyTriggers(times: { hour: number; minute: number }[]): TimestampTrigger[] {
+function buildDailyTriggers(times: string[]): TimestampTrigger[] {
   const now = new Date();
-  return times.map(({ hour, minute }) => {
+  return times.map(t => {
+    const [hour, minute] = t.split(':').map(Number);
     const next = new Date(now);
     next.setHours(hour, minute, 0, 0);
-    // if the time today already passed, schedule for tomorrow
     if (next.getTime() <= now.getTime()) {
       next.setDate(next.getDate() + 1);
     }
@@ -72,13 +76,12 @@ function buildDailyTriggers(times: { hour: number; minute: number }[]): Timestam
 
 // ---- Scheduling / cancelling ----
 async function scheduleReminderNotifications(med: Medication): Promise<string[]> {
-  const times = parseTimesCSV(med.time);
-  if (times.length === 0) return [];
+  const timesArray = med.times && med.times.length > 0 ? med.times : csvToArray(med.time);
+  if (timesArray.length === 0) return [];
 
-  const triggers = buildDailyTriggers(times);
+  const triggers = buildDailyTriggers(timesArray);
 
-  // Optional: group per reminder
-  const androidChannelId = 'notification'; // created in setupNotificationChannel()
+  const androidChannelId = 'notification';
   const groupId = `reminder:${med.id}`;
 
   const ids: string[] = [];
@@ -89,7 +92,7 @@ async function scheduleReminderNotifications(med: Medication): Promise<string[]>
         body: med.instructions ?? `Dose ${i + 1}${med.dosage ? ` — ${med.dosage}` : ''}`,
         android: {
           channelId: androidChannelId,
-          smallIcon: 'ic_stat_name', // ensure you have a small icon, or remove this line
+          smallIcon: 'ic_stat_name',
           importance: AndroidImportance.DEFAULT,
           category: AndroidCategory.REMINDER,
           groupId,
@@ -140,12 +143,14 @@ export function RemindersProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
     const ref = doc(db, 'users', userId, 'reminders', reminder.id);
 
-    await setDoc(ref, reminder);
-    setReminders(prev => [...prev, reminder]);
+    // Store times array alongside CSV
+    const timesArray = csvToArray(reminder.time);
+    await setDoc(ref, { ...reminder, times: timesArray });
 
-    // schedule notifications
-    await cancelReminderNotifications(reminder.id); // safety
-    const ids = await scheduleReminderNotifications(reminder);
+    setReminders(prev => [...prev, { ...reminder, times: timesArray }]);
+
+    await cancelReminderNotifications(reminder.id);
+    const ids = await scheduleReminderNotifications({ ...reminder, times: timesArray });
     await saveNotificationIds(reminder.id, ids);
   };
 
@@ -153,12 +158,13 @@ export function RemindersProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
     const ref = doc(db, 'users', userId, 'reminders', updated.id);
 
-    await updateDoc(ref, updated);
-    setReminders(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+    const timesArray = csvToArray(updated.time);
+    await updateDoc(ref, { ...updated, times: timesArray });
 
-    // re-schedule
+    setReminders(prev => prev.map(r => (r.id === updated.id ? { ...updated, times: timesArray } : r)));
+
     await cancelReminderNotifications(updated.id);
-    const ids = await scheduleReminderNotifications(updated);
+    const ids = await scheduleReminderNotifications({ ...updated, times: timesArray });
     await saveNotificationIds(updated.id, ids);
   };
 

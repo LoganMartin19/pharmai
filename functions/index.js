@@ -16,6 +16,9 @@ setGlobalOptions({
   secrets: ["OPENAI_API_KEY"], // <-- ensure this secret exists
 });
 
+/* =======================================================================================
+ * Chat (unchanged)
+ * ======================================================================================= */
 exports.chat = onRequest((req, res) => {
   corsHandler(req, res, async () => {
     try {
@@ -105,6 +108,224 @@ exports.chat = onRequest((req, res) => {
         (err && err.code === "insufficient_quota" && 402) ||
         500;
       return res.status(status).json({ error: "llm_error" });
+    }
+  });
+});
+
+/* =======================================================================================
+ * Care invites (unchanged)
+ * ======================================================================================= */
+function randId(len = 8) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+// POST /createInvite   (Auth: Bearer <ID_TOKEN>)
+exports.createInvite = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+
+      const auth = req.headers.authorization || "";
+      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (!token) return res.status(401).json({ error: "unauthorized" });
+      const decoded = await admin.auth().verifyIdToken(token);
+      const patientUid = decoded.uid;
+
+      const inviteId = randId(8);
+      const now = admin.firestore.Timestamp.now();
+      const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + 30 * 60 * 1000); // 30 min
+
+      await db.collection("careInvites").doc(inviteId).set({
+        patientUid,
+        createdAt: now,
+        expiresAt,
+      });
+
+      res.json({ inviteId, expiresAt: expiresAt.toDate().toISOString() });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "create_invite_failed" });
+    }
+  });
+});
+
+// POST /acceptInvite   (Auth: Bearer <ID_TOKEN>) { inviteId, caregiverDisplayName? }
+exports.acceptInvite = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+
+      // ----- Auth -----
+      const auth = req.headers.authorization || "";
+      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (!token) return res.status(401).json({ error: "unauthorized" });
+      const decoded = await admin.auth().verifyIdToken(token);
+      const caregiverUid = decoded.uid;
+
+      // ----- Input -----
+      const { inviteId, caregiverDisplayName } = req.body || {};
+      if (!inviteId) return res.status(400).json({ error: "missing_inviteId" });
+
+      // ----- Load invite -----
+      const inviteRef = db.collection("careInvites").doc(inviteId);
+      const snap = await inviteRef.get();
+      if (!snap.exists) return res.status(404).json({ error: "invite_not_found" });
+
+      const { patientUid, expiresAt, status } = snap.data() || {};
+      if (!patientUid) return res.status(400).json({ error: "invalid_invite" });
+      if (status && status !== "active") return res.status(410).json({ error: "invite_unusable" });
+      if (expiresAt && expiresAt.toMillis() < Date.now()) {
+        return res.status(410).json({ error: "invite_expired" });
+      }
+      if (patientUid === caregiverUid) {
+        return res.status(400).json({ error: "self_link_forbidden" });
+      }
+
+      // ----- Fetch profiles for display names -----
+      const [patientDoc, caregiverDoc] = await Promise.all([
+        db.collection("users").doc(patientUid).get(),
+        db.collection("users").doc(caregiverUid).get(),
+      ]);
+
+      const patientName =
+        (patientDoc.exists && (patientDoc.data().displayName || patientDoc.data().name)) || null;
+
+      const caregiverName =
+        caregiverDisplayName ||
+        (caregiverDoc.exists && (caregiverDoc.data().displayName || caregiverDoc.data().name)) ||
+        null;
+
+      // ----- Write links (both directions) -----
+      const batch = db.batch();
+      const now = admin.firestore.FieldValue.serverTimestamp();
+
+      // patient -> caregiver
+      batch.set(
+        db.collection("users").doc(patientUid).collection("careLinks").doc(caregiverUid),
+        {
+          role: "caregiver",
+          displayName: caregiverName,   // caregiver’s name on the patient side
+          peerUid: caregiverUid,
+          createdAt: now,
+        },
+        { merge: true }
+      );
+
+      // caregiver -> patient
+      batch.set(
+        db.collection("users").doc(caregiverUid).collection("careLinks").doc(patientUid),
+        {
+          role: "patient",
+          displayName: patientName,     // patient’s name on the caregiver side
+          peerUid: patientUid,
+          createdAt: now,
+        },
+        { merge: true }
+      );
+
+      // mark invite used (or delete if you prefer)
+      batch.delete(inviteRef);
+
+      await batch.commit();
+
+      res.json({ ok: true, patientUid });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "accept_failed" });
+    }
+  });
+});
+
+/* =======================================================================================
+ * NEW: reportMissedDose — patient reports a still-missed dose after the follow-up delay.
+ * Fan-out an alert doc into each caregiver's inbox so the *caregiver device* can show a
+ * local Notifee notification while we defer FCM integration.
+ * =======================================================================================
+ *
+ * POST /reportMissedDose   (Auth: Bearer <ID_TOKEN>)
+ * Body:
+ * {
+ *   medId: string,
+ *   medName: string,
+ *   doseDate: "YYYY-MM-DD",
+ *   doseIndex?: number
+ * }
+ */
+exports.reportMissedDose = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+
+      // ----- Auth (patient) -----
+      const auth = req.headers.authorization || "";
+      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (!token) return res.status(401).json({ error: "unauthorized" });
+      const decoded = await admin.auth().verifyIdToken(token);
+      const patientUid = decoded.uid;
+
+      // ----- Payload -----
+      const { medId, medName, doseDate, doseIndex } = req.body || {};
+      if (!medId || !doseDate) {
+        return res.status(400).json({ error: "missing_fields" });
+      }
+
+      // ----- Gather caregivers linked to this patient -----
+      const linksSnap = await db
+        .collection("users")
+        .doc(patientUid)
+        .collection("careLinks")
+        .get();
+
+      const caregivers = [];
+      linksSnap.forEach((d) => {
+        const data = d.data() || {};
+        if (data.role === "caregiver") {
+          caregivers.push({
+            caregiverUid: d.id,
+            notifyCare: data.notifyCare !== false, // default true
+            delayMin: Number(data.notifyDelayMinutes || 60),
+          });
+        }
+      });
+
+      if (caregivers.length === 0) {
+        return res.json({ ok: true, notified: 0 });
+      }
+
+      // ----- Create inbox alerts for those who opted in -----
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const batch = db.batch();
+      let notified = 0;
+
+      caregivers.forEach(({ caregiverUid, notifyCare }) => {
+        if (!notifyCare) return;
+        const inboxRef = db
+          .collection("users")
+          .doc(caregiverUid)
+          .collection("inbox")
+          .doc();
+
+        batch.set(inboxRef, {
+          type: "missedDose",
+          createdAt: now,
+          unread: true,
+          patientUid,
+          medId,
+          medName: medName || null,
+          doseDate,
+          doseIndex: typeof doseIndex === "number" ? doseIndex : null,
+        });
+        notified++;
+      });
+
+      await batch.commit();
+      return res.json({ ok: true, notified });
+    } catch (e) {
+      console.error("reportMissedDose failed:", e);
+      return res.status(500).json({ error: "report_failed" });
     }
   });
 });
