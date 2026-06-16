@@ -8,7 +8,6 @@ module.exports = {
   scheme: 'pharmai',
   ios: {
     bundleIdentifier: 'Logan.PharmAI',
-    buildNumber: '2',
     supportsTablet: false,
     infoPlist: {
       NSCameraUsageDescription: 'PharmAI uses the camera to scan prescriptions and medication bottles.',
