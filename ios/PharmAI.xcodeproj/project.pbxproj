@@ -231,29 +231,27 @@
 		F860EEE8A4168E923584AB78 /* Pods-PharmAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PharmAI.release.xcconfig"; path = "Target Support Files/Pods-PharmAI/Pods-PharmAI.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
 		B41DDAF32E46A60F005869D0 /* RNFonts 2 */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
+			isa = PBXGroup;
+			children = (
 			);
 			path = "RNFonts 2";
 			sourceTree = "<group>";
 		};
 		B4E3FEF72E338F49007E5A35 /* PharmAITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
+			isa = PBXGroup;
+			children = (
 			);
 			path = PharmAITests;
 			sourceTree = "<group>";
 		};
 		B4E3FF012E338F49007E5A35 /* PharmAIUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
+			isa = PBXGroup;
+			children = (
 			);
 			path = PharmAIUITests;
 			sourceTree = "<group>";
 		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B4E3FEF12E338F49007E5A35 /* Frameworks */ = {
@@ -542,9 +540,6 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				B4E3FEF72E338F49007E5A35 /* PharmAITests */,
-			);
 			name = PharmAITests;
 			productName = PharmAITests;
 			productReference = B4E3FEF42E338F49007E5A35 /* PharmAITests.xctest */;
@@ -561,9 +556,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				B4E3FF012E338F49007E5A35 /* PharmAIUITests */,
 			);
 			name = PharmAIUITests;
 			productName = PharmAIUITests;
@@ -584,9 +576,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				B41DDAF32E46A60F005869D0 /* RNFonts 2 */,
 			);
 			name = PharmAI;
 			productName = PharmAI;
