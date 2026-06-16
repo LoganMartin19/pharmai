@@ -6,7 +6,9 @@
     "start": "react-native start",
     "postinstall": "patch-package",
     "ios": "npx react-native run-ios",
-    "android": "expo run:android"
+    "android": "expo run:android",
+    "eas:ios": "npx eas-cli build --platform ios --profile production",
+    "eas:submit": "npx eas-cli submit --platform ios --latest"
   },
   "dependencies": {
     "@notifee/react-native": "^9.1.8",

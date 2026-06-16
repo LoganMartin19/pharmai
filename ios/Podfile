@@ -36,13 +36,14 @@ target 'PharmAI' do
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
         config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
+        config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
 
         # 🧩 Fix missing system libraries
         config.build_settings['OTHER_LDFLAGS'] ||= '$(inherited)'
-	ldflags = config.build_settings['OTHER_LDFLAGS']
-	ldflags_array = ldflags.is_a?(String) ? [ldflags] : ldflags
-	ldflags_array += ['-lc++', '-lc++abi', '-licucore', '-lz']
-	config.build_settings['OTHER_LDFLAGS'] = ldflags_array	
+        ldflags = config.build_settings['OTHER_LDFLAGS']
+        ldflags_array = ldflags.is_a?(String) ? [ldflags] : ldflags
+        ldflags_array += ['-lc++', '-lc++abi', '-licucore', '-lz']
+        config.build_settings['OTHER_LDFLAGS'] = ldflags_array
       end
 
       # ✅ Fix for RNReanimated
@@ -64,12 +65,22 @@ target 'PharmAI' do
     # 🩹 Optional fix: RCT-Folly `clockid_t` type redefinition
     folly_time = "Pods/RCT-Folly/folly/portability/Time.h"
     if File.exist?(folly_time)
+      File.chmod(0644, folly_time) rescue nil
       text = File.read(folly_time)
       patched = text.gsub(
         "typedef uint8_t clockid_t;",
         "#ifndef __clockid_t_defined\n#define __clockid_t_defined\ntypedef uint8_t clockid_t;\n#endif"
       )
       File.write(folly_time, patched)
+    end
+
+    Dir.glob("Pods/Target Support Files/Pods-*/Pods-*-resources.sh").each do |resources_script|
+      text = File.read(resources_script)
+      patched = text.gsub(
+        'echo "$(realpath -mq "${0}"):$1: error: Unexpected failure"',
+        'echo "$(realpath -q "${0}" 2>/dev/null || echo "${0}"):$1: error: Unexpected failure"'
+      )
+      File.write(resources_script, patched)
     end
   end
 end
