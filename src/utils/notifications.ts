@@ -11,11 +11,12 @@ import notifee, {
 } from '@notifee/react-native';
 import { Medication } from '../types/Medication';
 import { auth, db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { pingCaregivers } from './careAlerts'; // ✅ use the new util
 
 const CHANNEL_ID = 'notification';
 const IDS_KEY = (reminderId: string) => `reminder:${reminderId}:notifeeIds`;
+const SNOOZE_MINUTES = 15;
 
 /* ---------------- Permissions & Channel ---------------- */
 
@@ -41,6 +42,15 @@ export async function setupNotificationChannel() {
       name: 'Reminders',
       importance: AndroidImportance.DEFAULT,
     });
+    await notifee.setNotificationCategories([
+      {
+        id: 'dose-reminder',
+        actions: [
+          { id: 'taken', title: 'Taken' },
+          { id: 'snooze', title: `Snooze ${SNOOZE_MINUTES}m` },
+        ],
+      },
+    ]);
   } catch (e) {
     console.warn('createChannel failed', e);
   }
@@ -54,10 +64,23 @@ function parseTimesCSV(times?: string): { hour: number; minute: number }[] {
     .split(',')
     .map((s) => s.trim())
     .map((t) => {
-      const [h, m] = t.split(':').map(Number);
-      return Number.isFinite(h) && Number.isFinite(m) ? { hour: h, minute: m } : null;
+      const match = t.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+      if (!match) return null;
+
+      let hour = Number(match[1]);
+      const minute = Number(match[2]);
+      const meridiem = match[3]?.toUpperCase();
+
+      if (meridiem === 'PM' && hour < 12) hour += 12;
+      if (meridiem === 'AM' && hour === 12) hour = 0;
+
+      return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? { hour, minute } : null;
     })
     .filter(Boolean) as { hour: number; minute: number }[];
+}
+
+function parseTimeValue(time: string): { hour: number; minute: number } | null {
+  return parseTimesCSV(time)[0] ?? null;
 }
 
 function buildDailyTriggers(times: { hour: number; minute: number }[]): TimestampTrigger[] {
@@ -75,6 +98,18 @@ function buildDailyTriggers(times: { hour: number; minute: number }[]): Timestam
   });
 }
 
+function buildOneTimeTrigger(date: Date): TimestampTrigger {
+  return {
+    type: TriggerType.TIMESTAMP,
+    timestamp: date.getTime(),
+    alarmManager: { allowWhileIdle: true },
+  };
+}
+
+function todayISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
 /* ---------------- Notification ID helpers ---------------- */
 
 async function saveIds(reminderId: string, ids: string[]) {
@@ -90,6 +125,35 @@ async function appendIds(reminderId: string, ids: string[]) {
 }
 async function clearIds(reminderId: string) {
   await AsyncStorage.removeItem(IDS_KEY(reminderId));
+}
+
+async function markDoseTaken(med: Medication, doseIndex: number) {
+  const u = auth.currentUser;
+  if (!u) return;
+
+  const today = todayISO();
+  const freq =
+    med.frequency === 'Twice daily' ? 2 :
+    med.frequency === 'Three times daily' ? 3 : 1;
+  const history = med.history ?? [];
+  const existing = history.find((h) => h.date === today);
+
+  const nextHistory = existing
+    ? history.map((h) => {
+        if (h.date !== today) return h;
+        const taken = [...(h.taken ?? Array(freq).fill(false))];
+        taken[doseIndex] = true;
+        return { ...h, taken };
+      })
+    : [
+        ...history,
+        {
+          date: today,
+          taken: Array.from({ length: freq }, (_, index) => index === doseIndex),
+        },
+      ];
+
+  await updateDoc(doc(db, 'users', u.uid, 'reminders', med.id), { history: nextHistory });
 }
 
 /* ---------------- Follow-up delay (per-user setting) ---------------- */
@@ -121,13 +185,12 @@ export async function setFollowUpDelayMinutes(minutes: number) {
 /* ---------------- Main scheduling (primary dose notifications) ---------------- */
 
 export async function scheduleReminderNotifications(med: Medication): Promise<string[]> {
-  const timesList =
+  const timesList: { hour: number; minute: number }[] =
     // @ts-ignore — some reminders may carry array form (string[])
     med.times && (med as any).times.length > 0
-      ? (med as any).times.map((t: string) => {
-          const [h, m] = t.split(':').map(Number);
-          return { hour: h, minute: m };
-        })
+      ? (med as any).times
+          .map((t: string) => parseTimeValue(t))
+          .filter((t: { hour: number; minute: number } | null): t is { hour: number; minute: number } => !!t)
       : parseTimesCSV(med.time);
 
   if (timesList.length === 0) return [];
@@ -146,8 +209,12 @@ export async function scheduleReminderNotifications(med: Medication): Promise<st
           category: AndroidCategory.REMINDER,
           groupId,
           pressAction: { id: 'default' },
+          actions: [
+            { title: 'Taken', pressAction: { id: 'taken' } },
+            { title: `Snooze ${SNOOZE_MINUTES}m`, pressAction: { id: 'snooze' } },
+          ],
         },
-        ios: { sound: 'default', interruptionLevel: 'active' },
+        ios: { sound: 'default', interruptionLevel: 'active', categoryId: 'dose-reminder' },
         // used later by the handler
         data: { kind: 'dose', medId: med.id, doseIndex: String(i) },
       },
@@ -156,8 +223,47 @@ export async function scheduleReminderNotifications(med: Medication): Promise<st
     mainIds.push(id);
   }
 
-  await saveIds(med.id, mainIds);
-  return mainIds;
+  const refillIds = await scheduleRefillNotifications(med);
+  const ids = [...mainIds, ...refillIds];
+  await saveIds(med.id, ids);
+  return ids;
+}
+
+async function scheduleRefillNotifications(med: Medication): Promise<string[]> {
+  if (!med.endDate || !med.repeatPrescription) return [];
+
+  const endDate = new Date(`${med.endDate}T09:00:00`);
+  if (Number.isNaN(endDate.getTime())) return [];
+
+  const offsets = [7, 3, 0];
+  const ids: string[] = [];
+
+  for (const daysBefore of offsets) {
+    const reminderDate = new Date(endDate);
+    reminderDate.setDate(endDate.getDate() - daysBefore);
+    if (reminderDate.getTime() <= Date.now()) continue;
+
+    const id = await notifee.createTriggerNotification(
+      {
+        title: daysBefore === 0 ? `Refill ${med.name} today` : `${med.name} refill coming up`,
+        body:
+          daysBefore === 0
+            ? 'Your prescription end date is today.'
+            : `${daysBefore} days until your prescription end date.`,
+        android: {
+          channelId: CHANNEL_ID,
+          category: AndroidCategory.REMINDER,
+          pressAction: { id: 'default' },
+        },
+        ios: { sound: 'default', interruptionLevel: 'active' },
+        data: { kind: 'refill', medId: med.id, daysBefore: String(daysBefore) },
+      },
+      buildOneTimeTrigger(reminderDate)
+    );
+    ids.push(id);
+  }
+
+  return ids;
 }
 
 export async function cancelReminderNotifications(reminderId: string) {
@@ -171,17 +277,15 @@ export async function cancelReminderNotifications(reminderId: string) {
 /* ---------------- Smart follow-up handler (foreground + background) ---------------- */
 
 async function coreNotificationHandler({ type, detail }: { type: EventType; detail: any }) {
-  if (type !== EventType.DELIVERED) return;
-
   const n = detail?.notification;
   const data = n?.data as any;
   if (!data) return;
 
-  const kind = data.kind as 'dose' | 'followup' | undefined;
+  const kind = data.kind as 'dose' | 'followup' | 'refill' | undefined;
   const medId = data.medId as string | undefined;
   const doseIndex = Number(data.doseIndex);
 
-  if (!medId || Number.isNaN(doseIndex)) return;
+  if (!medId || (kind !== 'refill' && Number.isNaN(doseIndex))) return;
 
   try {
     const u = auth.currentUser;
@@ -191,7 +295,44 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
     const med = medSnap.exists() ? (medSnap.data() as Medication) : null;
     if (!med) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    if (type === EventType.ACTION_PRESS && kind === 'dose') {
+      const actionId = detail?.pressAction?.id;
+      if (actionId === 'taken') {
+        await markDoseTaken({ ...med, id: medId }, doseIndex);
+        if (n.id) await notifee.cancelNotification(n.id);
+        return;
+      }
+
+      if (actionId === 'snooze') {
+        const snoozeTime = new Date(Date.now() + SNOOZE_MINUTES * 60 * 1000);
+        const snoozeId = await notifee.createTriggerNotification(
+          {
+            title: `Time to take ${med.name}`,
+            body: `Snoozed for ${SNOOZE_MINUTES} minutes.`,
+            android: {
+              channelId: CHANNEL_ID,
+              category: AndroidCategory.REMINDER,
+              pressAction: { id: 'default' },
+              actions: [
+                { title: 'Taken', pressAction: { id: 'taken' } },
+                { title: `Snooze ${SNOOZE_MINUTES}m`, pressAction: { id: 'snooze' } },
+              ],
+            },
+            ios: { sound: 'default', interruptionLevel: 'active', categoryId: 'dose-reminder' },
+            data: { kind: 'dose', medId, doseIndex: String(doseIndex) },
+          },
+          buildOneTimeTrigger(snoozeTime)
+        );
+        await appendIds(medId, [snoozeId]);
+        if (n.id) await notifee.cancelNotification(n.id);
+        return;
+      }
+    }
+
+    if (type !== EventType.DELIVERED) return;
+    if (kind === 'refill') return;
+
+    const today = todayISO();
     const todayHist = med.history?.find((h) => h.date === today);
     const isTaken = !!todayHist && !!todayHist.taken?.[doseIndex];
 

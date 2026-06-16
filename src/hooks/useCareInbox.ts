@@ -40,7 +40,7 @@ export default function useCareInbox() {
       if (!u) return;
 
       const inboxRef = collection(db, 'users', u.uid, 'inbox');
-      const q = query(inboxRef, where('delivered', '==', false));
+      const q = query(inboxRef, where('unread', '==', true));
 
       unsubInbox = onSnapshot(q, (snap) => {
         snap.docChanges().forEach(async (change) => {
@@ -67,7 +67,7 @@ export default function useCareInbox() {
 
           // mark as delivered so we don't notify again
           try {
-            await updateDoc(change.doc.ref, { delivered: true });
+            await updateDoc(change.doc.ref, { delivered: true, unread: false });
           } catch (e) {
             console.warn('inbox mark delivered failed', e);
           }

@@ -30,8 +30,7 @@ export default function RemindersScreen() {
   const renderItem = ({ item }: { item: Medication }) => (
     <Pressable
       style={styles.card}
-      // ✅ Use `prefill` (matches your RootStackParamList)
-      onPress={() => navigation.navigate('AddReminder', { prefill: item })}
+      onPress={() => navigation.navigate('AddReminder', { medication: item })}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
         {item.pillStyle ? <PillBadge style={item.pillStyle} size={18} /> : null}

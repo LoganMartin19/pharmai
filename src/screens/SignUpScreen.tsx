@@ -104,7 +104,7 @@ export default function SignUpScreen({ navigation }: any) {
         <Text style={styles.primaryBtnText}>{loading ? 'Creating…' : 'Sign up'}</Text>
       </Pressable>
 
-      <Pressable onPress={() => navigation.navigate('SignIn')} style={{ marginTop: 16 }}>
+      <Pressable onPress={() => navigation.navigate('Login')} style={{ marginTop: 16 }}>
         <Text style={{ textAlign: 'center' }}>
           Already have an account? <Text style={{ fontWeight: '700' }}>Sign in</Text>
         </Text>

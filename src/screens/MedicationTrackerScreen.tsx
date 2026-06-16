@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { Medication } from '../types/Medication';
 import styles from './styles/MedicationTrackerScreen.styles';
+import MedicationSafetyCard from '../components/MedicationSafetyCard';
 
 type MedicationTrackerRouteProp = RouteProp<RootStackParamList, 'MedicationTracker'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MedicationTracker'>;
@@ -101,6 +102,7 @@ export default function MedicationTrackerScreen() {
       <Text style={{ color: '#666', marginBottom: 10 }}>
         {medication.dosage ?? ''}{medication.time ? ` • ${medication.time}` : ''}{medication.frequency ? ` • ${medication.frequency}` : ''}
       </Text>
+      <MedicationSafetyCard medication={medication} />
 
       {/* Segmented toggle */}
       <View style={local.tabRow}>

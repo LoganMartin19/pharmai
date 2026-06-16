@@ -16,6 +16,8 @@
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app scans medication labels to prefill reminders.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PharmAI uses your location to show nearby pharmacies for refills.</string>
 	<key>RCTNewArchEnabled</key>
 	<false/>
 	<key>UIAppFonts</key>

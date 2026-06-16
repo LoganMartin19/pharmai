@@ -3,10 +3,9 @@ import { View, Text, TextInput, Pressable, FlatList, KeyboardAvoidingView, Platf
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { Msg } from '../types/chat';
-import { auth } from '../firebase';
+import { sendChatMessage } from '../api/chat';
 
 type ChatRoute = RouteProp<RootStackParamList, 'Chat'>;
-const CHAT_URL = 'https://chat-b7oxnbcw3q-uc.a.run.app'; // your function URL
 
 export default function ChatScreen() {
   const { params } = useRoute<ChatRoute>();
@@ -49,19 +48,7 @@ export default function ChatScreen() {
     setTimeout(scrollToEnd, 10);
 
     try {
-      const user = auth.currentUser; // using modular SDK export
-      if (!user) throw new Error('Not logged in');
-      const token = await user.getIdToken();
-
-      const body = { messages: [...messages, mine], chatId };
-      const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: { reply: string; chatId?: string } = await res.json();
+      const data: { reply: string; chatId?: string } = await sendChatMessage([...messages, mine], chatId);
       if (data.chatId && !chatId) setChatId(data.chatId);
 
       setMessages(cur => [...cur, { role: 'assistant', content: data.reply }]);

@@ -81,8 +81,9 @@ export default function ScanScreen() {
         return;
       }
 
-      nav.navigate('AddReminder', {
-        prefill: {
+      nav.navigate('ScanReview', {
+        rawText: text,
+        parsed: {
           name: parsed.name ?? '',
           dosage: parsed.dosage ?? '1 tablet',
           frequency: (parsed.frequency as any) ?? 'Once daily',

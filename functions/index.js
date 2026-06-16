@@ -295,6 +295,10 @@ exports.reportMissedDose = onRequest((req, res) => {
         return res.json({ ok: true, notified: 0 });
       }
 
+      const patientDoc = await db.collection("users").doc(patientUid).get();
+      const patientName =
+        (patientDoc.exists && (patientDoc.data().displayName || patientDoc.data().name)) || null;
+
       // ----- Create inbox alerts for those who opted in -----
       const now = admin.firestore.FieldValue.serverTimestamp();
       const batch = db.batch();
@@ -311,7 +315,9 @@ exports.reportMissedDose = onRequest((req, res) => {
         batch.set(inboxRef, {
           type: "missedDose",
           createdAt: now,
+          delivered: false,
           unread: true,
+          patientName,
           patientUid,
           medId,
           medName: medName || null,

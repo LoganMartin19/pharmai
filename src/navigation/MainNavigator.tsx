@@ -9,10 +9,14 @@ import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import RefillScreen from '../screens/RefillScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ScanScreen from '../screens/ScanScreen';
+import ScanReviewScreen from '../screens/ScanReviewScreen';
+import PharmacyRefillRequestScreen from '../screens/PharmacyRefillRequestScreen';
+import PharmacyPortalScreen from '../screens/PharmacyPortalScreen';
 import MedicationTrackerScreen from '../screens/MedicationTrackerScreen';
 import AddReminderScreen from '../screens/AddReminderScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
@@ -23,6 +27,7 @@ import HealthNavigator from './HealthNavigator';
 import HomeHealthHeader from '../components/HomeHealthHeader';
 import type { Medication } from '../types/Medication';
 import type { PillStyle } from '../types/PillStyle';
+import type { Pharmacy } from '../utils/pharmacySearch';
 
 /* -------------------- Types -------------------- */
 export type RootStackParamList = {
@@ -32,6 +37,12 @@ export type RootStackParamList = {
   ResetPassword: undefined;
   Main: undefined;
   Scan: undefined;
+  ScanReview: {
+    rawText: string;
+    parsed: Partial<Medication>;
+  };
+  PharmacyRefillRequest: { pharmacy: Pharmacy; medicationId?: string };
+  PharmacyPortal: undefined;
   MedicationTracker: { medication: Medication };
   AdherenceAnalytics: undefined;
   AddReminder:
@@ -48,6 +59,7 @@ export type RootStackParamList = {
 export type HomeTabParamList = {
   Home: undefined;
   Reminders: undefined;
+  Refills: undefined;
   Chat: undefined;
   Settings: undefined;
   Health: undefined;
@@ -83,6 +95,7 @@ function HomeTab() {
         const emoji =
           route.name === 'Home' ? '🏠' :
           route.name === 'Reminders' ? '📅' :
+          route.name === 'Refills' ? '🏥' :
           route.name === 'Chat' ? '💬' :
           route.name === 'Settings' ? '⚙️' :
           route.name === 'Health' ? '🩺' :
@@ -107,6 +120,7 @@ function HomeTab() {
         }}
       />
       <Tab.Screen name="Reminders" component={RemindersScreen} />
+      <Tab.Screen name="Refills" component={RefillScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
       <Tab.Screen name="Health" component={HealthNavigator} />
@@ -128,6 +142,9 @@ export default function MainNavigator() {
       />
       <RootStack.Screen name="Main" component={HomeTab} options={{ headerShown: false }} />
       <RootStack.Screen name="Scan" component={ScanScreen} />
+      <RootStack.Screen name="ScanReview" component={ScanReviewScreen} options={{ title: 'Review Scan' }} />
+      <RootStack.Screen name="PharmacyRefillRequest" component={PharmacyRefillRequestScreen} options={{ title: 'Request Refill' }} />
+      <RootStack.Screen name="PharmacyPortal" component={PharmacyPortalScreen} options={{ title: 'Pharmacy Portal' }} />
       <RootStack.Screen name="MedicationTracker" component={MedicationTrackerScreen} />
       <RootStack.Screen name="AddReminder" component={AddReminderScreen} />
       <RootStack.Screen name="AdherenceAnalytics" component={AdherenceAnalyticsScreen} />

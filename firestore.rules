@@ -4,6 +4,12 @@ service cloud.firestore {
 
     function isSignedIn() { return request.auth != null; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isPharmacyOwner(partnerId) {
+      return isSignedIn()
+        && partnerId is string
+        && exists(/databases/$(database)/documents/pharmacyPartners/$(partnerId))
+        && get(/databases/$(database)/documents/pharmacyPartners/$(partnerId)).data.ownerUid == request.auth.uid;
+    }
 
     // Caregiver is allowed if the patient has users/{patientUid}/careLinks/{caregiverUid}.role == "caregiver"
     function isCaregiverFor(patientUid) {
@@ -32,6 +38,13 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      // Caregiver inbox alerts are written by Cloud Functions with Admin SDK.
+      // The signed-in caregiver can listen for and mark their own alerts delivered.
+      match /inbox/{alertId} {
+        allow read, update, delete: if isOwner(uid);
+        allow create: if false;
+      }
+
       // 👇 NEW: pending alerts created by the PATIENT app for backend processing
       match /carePendingAlerts/{aid} {
         // App writes these when a dose notification fires and isn’t taken yet
@@ -49,6 +62,35 @@ service cloud.firestore {
     match /careInvites/{inviteId} {
       allow create, update, delete: if isSignedIn();
       allow read: if false;
+    }
+
+    // Public active partner metadata used only to label/rank sponsored pharmacy results.
+    match /pharmacyPartners/{partnerId} {
+      allow read: if isSignedIn()
+        && (resource.data.active == true || resource.data.ownerUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // User-created refill requests plus pharmacy-owner status updates.
+    match /pharmacyRequests/{requestId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userUid == request.auth.uid
+        && request.resource.data.status == "pending";
+      allow read: if isSignedIn()
+        && (
+          resource.data.userUid == request.auth.uid
+          || isPharmacyOwner(resource.data.pharmacyPartnerId)
+        );
+      allow update: if isSignedIn()
+        && (
+          (
+            resource.data.userUid == request.auth.uid
+            && request.resource.data.status in ["pending", "cancelled"]
+          )
+          || isPharmacyOwner(resource.data.pharmacyPartnerId)
+        );
+      allow delete: if isSignedIn()
+        && resource.data.userUid == request.auth.uid;
     }
   }
 }

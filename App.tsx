@@ -4,6 +4,7 @@ import { RemindersProvider } from './src/context/RemindersContext';
 import { NavigationContainer } from '@react-navigation/native';
 import MainNavigator from './src/navigation/MainNavigator';
 import { UserProvider } from './src/context/UserContext';
+import useCareInbox from './src/hooks/useCareInbox';
 
 import {
   requestNotificationPermission,
@@ -32,6 +33,8 @@ async function upsertFcmToken(uid: string) {
 }
 
 export default function App() {
+  useCareInbox();
+
   useEffect(() => {
     (async () => {
       await setupNotificationChannel();
@@ -41,11 +44,18 @@ export default function App() {
       if (auth.currentUser?.uid) {await upsertFcmToken(auth.currentUser.uid);}
     })();
 
+    let unsubRefresh: (() => void) | undefined;
+
     const unsubAuth = auth.onAuthStateChanged(async (user) => {
+      if (unsubRefresh) {
+        unsubRefresh();
+        unsubRefresh = undefined;
+      }
+
       if (user?.uid) {
         await upsertFcmToken(user.uid);
 
-        const unsubRefresh = messaging().onTokenRefresh(async (newToken) => {
+        unsubRefresh = messaging().onTokenRefresh(async (newToken) => {
           if (newToken) {
             await setDoc(
               doc(db, 'users', user.uid, 'fcmTokens', newToken),
@@ -54,12 +64,13 @@ export default function App() {
             );
           }
         });
-
-        return () => unsubRefresh();
       }
     });
 
-    return () => unsubAuth();
+    return () => {
+      if (unsubRefresh) unsubRefresh();
+      unsubAuth();
+    };
   }, []);
 
   return (

@@ -65,9 +65,15 @@ type Parsed = {
     const t = ` ${text.toLowerCase()} `;
   
     // plain language
-    if (/\bonce(?:\s+(a|per))?\s+day|daily\b/.test(t)) return { frequency: 'Once daily' };
-    if (/\btwice(?:\s+(a|per))?\s+day\b/.test(t)) return { frequency: 'Twice daily' };
-    if (/\b(three|3)\s+(times\s+)?(?:a|per)\s+day\b/.test(t)) return { frequency: 'Three times daily' };
+    if (/\btwice(?:\s+(?:a|per))?\s+day\b|\btwice\s+daily\b/.test(t)) {
+      return { frequency: 'Twice daily' };
+    }
+    if (/\b(?:three|3)\s+(?:times\s+)?(?:(?:a|per)\s+day|daily)\b/.test(t)) {
+      return { frequency: 'Three times daily' };
+    }
+    if (/\bonce(?:\s+(?:a|per))?\s+day\b|\bonce\s+daily\b|\bdaily\b/.test(t)) {
+      return { frequency: 'Once daily' };
+    }
   
     // abbreviations
     if (/\bod\b/.test(t)) return { frequency: 'Once daily' };  // omni die
@@ -79,7 +85,12 @@ type Parsed = {
     if (every) {
       const raw = every[1];
       const num = WORD_NUM[raw] ?? (parseInt(raw || '0', 10) || undefined);
-      if (num && num > 0) return { everyHours: num };
+      if (num && num > 0) {
+        if (num === 8) return { frequency: 'Three times daily', everyHours: num };
+        if (num === 12) return { frequency: 'Twice daily', everyHours: num };
+        if (num >= 24) return { frequency: 'Once daily', everyHours: num };
+        return { everyHours: num };
+      }
     }
   
     return {};

@@ -28,8 +28,14 @@ function parseFirstTimeFromPrefill(time?: string | string[]) {
   if (!time) return undefined;
   const raw = Array.isArray(time) ? time[0] : time;
   const first = String(raw).split(',')[0].trim();
-  const [h, m] = first.split(':').map((n) => parseInt(n, 10));
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return undefined;
+  const match = first.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+  if (!match) return undefined;
+  let h = Number(match[1]);
+  const m = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem === 'PM' && h < 12) h += 12;
+  if (meridiem === 'AM' && h === 12) h = 0;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return undefined;
   const d = new Date();
   d.setHours(h, m, 0, 0);
   return d;
@@ -61,13 +67,15 @@ export default function AddReminderScreen() {
   const [hoursApart, setHoursApart] = useState('4');
 
   const initialStart = useMemo(() => {
-    // Use the first time from original.time, then prefill.time, else now
+    // Use the first time from original, then prefill, else now
     return (
       parseFirstTimeFromPrefill(original?.time) ??
+      parseFirstTimeFromPrefill(original?.times) ??
       parseFirstTimeFromPrefill(prefill.time) ??
+      parseFirstTimeFromPrefill(prefill.times) ??
       new Date()
     );
-  }, [original?.time, prefill.time]);
+  }, [original?.time, original?.times, prefill.time, prefill.times]);
 
   const [startTime, setStartTime] = useState(initialStart);
 
@@ -92,8 +100,11 @@ export default function AddReminderScreen() {
   const [lookPickerVisible, setLookPickerVisible] = useState(false);
 
   // -------- helpers --------
-  const formatTime = (d: Date) =>
+  const formatDisplayTime = (d: Date) =>
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const formatReminderTime = (d: Date) =>
+    `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
@@ -112,7 +123,7 @@ export default function AddReminderScreen() {
 
     for (let i = 0; i < count; i++) {
       const doseTime = new Date(base.getTime() + i * interval * 60 * 60 * 1000);
-      times.push(formatTime(doseTime));
+      times.push(formatReminderTime(doseTime));
     }
     return times;
   };
@@ -216,7 +227,7 @@ export default function AddReminderScreen() {
 
         <Text style={styles.label}>Start Time</Text>
         <Pressable onPress={() => setShowTimePicker(true)} style={[styles.input, { justifyContent: 'center' }]}>
-          <Text>{formatTime(startTime)}</Text>
+          <Text>{formatDisplayTime(startTime)}</Text>
         </Pressable>
 
         <Text style={styles.label}>End Date</Text>

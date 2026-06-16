@@ -20,10 +20,6 @@ import { Medication } from '../types/Medication';
 import SafeLayout from '../components/SafeLayout';
 import { auth, db } from '../firebase';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import {
-  cancelReminderNotifications,
-  scheduleReminderNotifications,
-} from '../utils/notifications';
 import HomeHealthHeader from '../components/HomeHealthHeader';
 
 const ICONS = ['🌅', '☀️', '🌙'];
@@ -86,11 +82,6 @@ export default function HomeScreen() {
 
         const updatedMed = { ...med, history: newHistory };
         updateReminder(updatedMed);
-
-        (async () => {
-          await cancelReminderNotifications(med.id);
-          await scheduleReminderNotifications(updatedMed);
-        })();
 
         return updatedMed;
       })

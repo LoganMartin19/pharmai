@@ -227,6 +227,39 @@ export default function CarePatientScreen() {
     }).sort((a, b) => b.pct - a.pct);
   }, [meds, days]);
 
+  const weeklyDigest = useMemo(() => {
+    const last7 = new Set(rangeDays(7));
+    let taken = 0;
+    let total = 0;
+    const missedMeds: Record<string, number> = {};
+
+    meds.forEach((m) => {
+      m.history?.forEach((h) => {
+        if (!last7.has(h.date)) return;
+        h.taken?.forEach((doseTaken) => {
+          total += 1;
+          if (doseTaken) {
+            taken += 1;
+          } else {
+            missedMeds[m.name] = (missedMeds[m.name] ?? 0) + 1;
+          }
+        });
+      });
+    });
+
+    const adherence = total ? Math.round((taken / total) * 100) : 0;
+    const mostMissed = Object.entries(missedMeds).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      adherence,
+      taken,
+      total,
+      missed: total - taken,
+      mostMissedName: mostMissed?.[0],
+      mostMissedCount: mostMissed?.[1] ?? 0,
+    };
+  }, [meds]);
+
   /* --------------------------- RENDER --------------------------- */
 
   return (
@@ -236,6 +269,23 @@ export default function CarePatientScreen() {
         <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>
           {displayName || 'Patient'}
         </Text>
+
+        <View style={local.digestCard}>
+          <Text style={local.digestTitle}>Weekly digest</Text>
+          <Text style={local.digestMain}>
+            {weeklyDigest.total ? `${weeklyDigest.adherence}% adherence` : 'No dose history yet'}
+          </Text>
+          <Text style={local.digestSub}>
+            {weeklyDigest.total
+              ? `${weeklyDigest.taken}/${weeklyDigest.total} doses taken, ${weeklyDigest.missed} missed`
+              : 'When they start marking doses, the last 7 days will appear here.'}
+          </Text>
+          {weeklyDigest.mostMissedName ? (
+            <Text style={local.digestSub}>
+              Most missed: {weeklyDigest.mostMissedName} ({weeklyDigest.mostMissedCount})
+            </Text>
+          ) : null}
+        </View>
 
         {/* tabs */}
         <View style={local.tabRow}>
@@ -396,6 +446,17 @@ const local = StyleSheet.create({
   tabActive: { backgroundColor: '#E8F0FF', borderColor: '#0A84FF' },
   tabText: { color: '#333', fontWeight: '600' },
   tabTextActive: { color: '#0A84FF' },
+  digestCard: {
+    borderWidth: 1,
+    borderColor: '#D8E7DD',
+    backgroundColor: '#F1F8F3',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  digestTitle: { color: '#24543A', fontWeight: '800', marginBottom: 4 },
+  digestMain: { color: '#143D2A', fontSize: 20, fontWeight: '800' },
+  digestSub: { color: '#486457', marginTop: 3 },
 
   // window selector
   row: { flexDirection: 'row', gap: 8, marginTop: 6 },

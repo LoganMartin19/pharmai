@@ -201,6 +201,15 @@ export default function SettingsScreen() {
             Tip: Push notifications require a physical iPhone (the iOS Simulator cannot receive APNs).
           </Text>
 
+          {/* Pharmacy tools */}
+          <Text style={styles.sectionTitle}>Pharmacy Tools</Text>
+          <Pressable
+            onPress={() => navigation.navigate('PharmacyPortal')}
+            style={styles.portalBtn}
+          >
+            <Text style={styles.portalBtnText}>Open pharmacy portal</Text>
+          </Pressable>
+
           {/* Debug */}
           <Text style={styles.sectionTitle}>Debug</Text>
           <Pressable onPress={debugTestNotification} style={styles.debugBtn}>
@@ -246,5 +255,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  portalBtn: {
+    backgroundColor: '#E8F0FF',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  portalBtnText: { color: '#0A53B8', fontWeight: '700' },
   separator: { height: 24 },
 });
