@@ -95,6 +95,23 @@ target 'PharmAI' do
       File.write(folly_time, patched)
     end
 
+    # React Native 0.72 Yoga expects YGMeasureFunc to receive YGNodeRef. Some
+    # datetimepicker releases use YGNodeConstRef, which newer EAS/Xcode treats
+    # as an incompatible function pointer error.
+    datetimepicker_shadow = "../node_modules/@react-native-community/datetimepicker/ios/RNDateTimePickerShadowView.m"
+    if File.exist?(datetimepicker_shadow)
+      File.chmod(0644, datetimepicker_shadow) rescue nil
+      text = File.read(datetimepicker_shadow)
+      patched = text.gsub(
+        'static YGSize RNDateTimePickerShadowViewMeasure(YGNodeConstRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)',
+        'static YGSize RNDateTimePickerShadowViewMeasure(YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)'
+      )
+      if patched.include?('RNDateTimePickerShadowViewMeasure(YGNodeConstRef node')
+        raise 'Failed to patch RNDateTimePicker Yoga measure callback for React Native 0.72'
+      end
+      File.write(datetimepicker_shadow, patched)
+    end
+
     Dir.glob("Pods/Target Support Files/Pods-*/Pods-*-resources.sh").each do |resources_script|
       text = File.read(resources_script)
       patched = text.gsub(
