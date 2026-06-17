@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "start": "react-native start",
-    "postinstall": "patch-package",
     "ios": "npx react-native run-ios",
     "android": "expo run:android",
     "eas:ios": "npx eas-cli build --platform ios --profile production",
