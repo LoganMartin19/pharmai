@@ -73,10 +73,15 @@ target 'PharmAI' do
     if File.exist?(folly_time)
       File.chmod(0644, folly_time) rescue nil
       text = File.read(folly_time)
-      patched = text.gsub(
-        "typedef uint8_t clockid_t;",
-        "#ifndef __clockid_t_defined\n#define __clockid_t_defined\ntypedef uint8_t clockid_t;\n#endif"
-      )
+      patched = text
+        .gsub(
+          /#ifndef __clockid_t_defined\n(?:#define __clockid_t_defined\n|\/\/#ifndef __clockid_t_defined\n)*#endif\n?/,
+          "/* PharmAI: clockid_t is provided by modern iOS SDKs. */\n"
+        )
+        .gsub(
+          /^\s*typedef uint8_t clockid_t;\s*$/,
+          "/* PharmAI: clockid_t typedef removed; provided by the SDK. */"
+        )
       File.write(folly_time, patched)
     end
 
