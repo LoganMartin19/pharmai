@@ -21,7 +21,7 @@
     "production": {
       "autoIncrement": true,
       "ios": {
-        "image": "latest",
+        "image": "macos-sequoia-15.6-xcode-16.4",
         "resourceClass": "m-medium"
       }
     }

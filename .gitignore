@@ -13,6 +13,7 @@ yarn-error.log*
 ios/build/
 android/app/build/
 build/
+boost_1_76_0/
 
 # Xcode specific
 *.xcworkspace
