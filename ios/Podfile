@@ -42,6 +42,7 @@ target 'PharmAI' do
         cxxflags = config.build_settings['OTHER_CPLUSPLUSFLAGS'] || '$(inherited)'
         cxxflags_array = cxxflags.is_a?(String) ? [cxxflags] : cxxflags
         cxxflags_array += ['-Wno-error=deprecated-literal-operator', '-Wno-deprecated-literal-operator']
+        cxxflags_array += ['-DFOLLY_HAVE_CLOCK_GETTIME=1'] if target.name == 'RCT-Folly'
         config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cxxflags_array
 
         # 🧩 Fix missing system libraries
@@ -68,12 +69,17 @@ target 'PharmAI' do
       end
     end
 
-    # 🩹 Optional fix: RCT-Folly `clockid_t` type redefinition
+    # iOS 26 SDK declares clockid_t as an enum. Older RCT-Folly also declares it
+    # as uint8_t in its Apple fallback path, which breaks archive builds.
     folly_time = "Pods/RCT-Folly/folly/portability/Time.h"
     if File.exist?(folly_time)
       File.chmod(0644, folly_time) rescue nil
       text = File.read(folly_time)
       patched = text
+        .gsub(
+          '#if !FOLLY_HAVE_CLOCK_GETTIME && (defined(__MACH__) || defined(_WIN32))',
+          '#if !FOLLY_HAVE_CLOCK_GETTIME && defined(_WIN32)'
+        )
         .gsub(
           /#ifndef __clockid_t_defined\n(?:#define __clockid_t_defined\n|\/\/#ifndef __clockid_t_defined\n)*#endif\n?/,
           "/* PharmAI: clockid_t is provided by modern iOS SDKs. */\n"
@@ -82,6 +88,10 @@ target 'PharmAI' do
           /^\s*typedef uint8_t clockid_t;\s*$/,
           "/* PharmAI: clockid_t typedef removed; provided by the SDK. */"
         )
+      if patched.include?('typedef uint8_t clockid_t;') ||
+          patched.include?('#if !FOLLY_HAVE_CLOCK_GETTIME && (defined(__MACH__) || defined(_WIN32))')
+        raise 'Failed to patch RCT-Folly clockid_t fallback for modern iOS SDKs'
+      end
       File.write(folly_time, patched)
     end
 
