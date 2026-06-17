@@ -112,6 +112,18 @@ target 'PharmAI' do
       File.write(datetimepicker_shadow, patched)
     end
 
+    # Some EAS images expose RCT_NEW_ARCH_ENABLED=0 to pods. react-native-screens
+    # has guards that use #ifdef, which treats a 0-valued macro as enabled and
+    # tries to import Fabric codegen headers that do not exist in this Paper app.
+    Dir.glob("../node_modules/react-native-screens/ios/**/*.{h,m,mm}").each do |screens_file|
+      text = File.read(screens_file)
+      patched = text
+        .gsub('#ifdef RCT_NEW_ARCH_ENABLED', '#if RCT_NEW_ARCH_ENABLED')
+        .gsub('#ifndef RCT_NEW_ARCH_ENABLED', '#if !RCT_NEW_ARCH_ENABLED')
+        .gsub('#if !defined(RCT_NEW_ARCH_ENABLED)', '#if !RCT_NEW_ARCH_ENABLED')
+      File.write(screens_file, patched) if patched != text
+    end
+
     Dir.glob("Pods/Target Support Files/Pods-*/Pods-*-resources.sh").each do |resources_script|
       text = File.read(resources_script)
       patched = text.gsub(
