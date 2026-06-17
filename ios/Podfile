@@ -37,6 +37,12 @@ target 'PharmAI' do
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
         config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
         config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+
+        cxxflags = config.build_settings['OTHER_CPLUSPLUSFLAGS'] || '$(inherited)'
+        cxxflags_array = cxxflags.is_a?(String) ? [cxxflags] : cxxflags
+        cxxflags_array += ['-Wno-error=deprecated-literal-operator', '-Wno-deprecated-literal-operator']
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cxxflags_array
 
         # 🧩 Fix missing system libraries
         config.build_settings['OTHER_LDFLAGS'] ||= '$(inherited)'
