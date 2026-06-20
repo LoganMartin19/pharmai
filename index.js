@@ -17,8 +17,15 @@ import { name as appName } from './app.json';
 // 1) Web SDK app (your file runs initializeApp)
 import './src/firebase';
 
-import notifee from '@notifee/react-native';
-import { backgroundNotificationHandler } from './src/utils/notifications';
-notifee.onBackgroundEvent(backgroundNotificationHandler);
+try {
+  // Defer notification native module access so app startup survives if it is unavailable.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const notifee = require('@notifee/react-native').default;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { backgroundNotificationHandler } = require('./src/utils/notifications');
+  notifee.onBackgroundEvent(backgroundNotificationHandler);
+} catch (e) {
+  console.warn('Background notifications unavailable at startup', e);
+}
 
 AppRegistry.registerComponent(appName, () => App);

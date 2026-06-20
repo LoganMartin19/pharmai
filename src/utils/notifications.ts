@@ -1,31 +1,49 @@
 // src/utils/notifications.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import notifee, {
-  AndroidCategory,
-  AndroidImportance,
-  AuthorizationStatus,
-  EventType,
-  RepeatFrequency,
-  TimestampTrigger,
-  TriggerType,
-} from '@notifee/react-native';
 import { Medication } from '../types/Medication';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { pingCaregivers } from './careAlerts'; // ✅ use the new util
 
+type NotifeeModule = typeof import('@notifee/react-native').default;
+type NotifeePackage = typeof import('@notifee/react-native');
+type EventTypeValue = NotifeePackage['EventType'][keyof NotifeePackage['EventType']];
+type TimestampTrigger = import('@notifee/react-native').TimestampTrigger;
+
 const CHANNEL_ID = 'notification';
 const IDS_KEY = (reminderId: string) => `reminder:${reminderId}:notifeeIds`;
 const SNOOZE_MINUTES = 15;
+
+let notifeePackage: NotifeePackage | null | undefined;
+
+function getNotifeePackage(): NotifeePackage | null {
+  if (notifeePackage !== undefined) return notifeePackage;
+  try {
+    // Lazy-load so a notification native-module issue cannot crash app startup.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    notifeePackage = require('@notifee/react-native') as NotifeePackage;
+  } catch (e) {
+    console.warn('notifee unavailable', e);
+    notifeePackage = null;
+  }
+  return notifeePackage;
+}
+
+function getNotifee(): NotifeeModule | null {
+  return getNotifeePackage()?.default ?? null;
+}
 
 /* ---------------- Permissions & Channel ---------------- */
 
 export async function requestNotificationPermission() {
   try {
+    const pkg = getNotifeePackage();
+    const notifee = pkg?.default;
+    if (!pkg || !notifee) return;
     const settings = await notifee.requestPermission();
-    if (settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED) {
+    if (settings.authorizationStatus >= pkg.AuthorizationStatus.AUTHORIZED) {
       console.log('✅ Notifications authorized');
-    } else if (settings.authorizationStatus === AuthorizationStatus.DENIED) {
+    } else if (settings.authorizationStatus === pkg.AuthorizationStatus.DENIED) {
       console.log('❌ Notifications denied');
     } else {
       console.log('ℹ️ Notifications provisional/limited');
@@ -37,10 +55,13 @@ export async function requestNotificationPermission() {
 
 export async function setupNotificationChannel() {
   try {
+    const pkg = getNotifeePackage();
+    const notifee = pkg?.default;
+    if (!pkg || !notifee) return;
     await notifee.createChannel({
       id: CHANNEL_ID,
       name: 'Reminders',
-      importance: AndroidImportance.DEFAULT,
+      importance: pkg.AndroidImportance.DEFAULT,
     });
     await notifee.setNotificationCategories([
       {
@@ -84,23 +105,27 @@ function parseTimeValue(time: string): { hour: number; minute: number } | null {
 }
 
 function buildDailyTriggers(times: { hour: number; minute: number }[]): TimestampTrigger[] {
+  const pkg = getNotifeePackage();
+  if (!pkg) return [];
   const now = new Date();
   return times.map(({ hour, minute }) => {
     const next = new Date(now);
     next.setHours(hour, minute, 0, 0);
     if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
     return {
-      type: TriggerType.TIMESTAMP,
+      type: pkg.TriggerType.TIMESTAMP,
       timestamp: next.getTime(),
-      repeatFrequency: RepeatFrequency.DAILY,
+      repeatFrequency: pkg.RepeatFrequency.DAILY,
       alarmManager: { allowWhileIdle: true },
     };
   });
 }
 
-function buildOneTimeTrigger(date: Date): TimestampTrigger {
+function buildOneTimeTrigger(date: Date): TimestampTrigger | null {
+  const pkg = getNotifeePackage();
+  if (!pkg) return null;
   return {
-    type: TriggerType.TIMESTAMP,
+    type: pkg.TriggerType.TIMESTAMP,
     timestamp: date.getTime(),
     alarmManager: { allowWhileIdle: true },
   };
@@ -185,6 +210,10 @@ export async function setFollowUpDelayMinutes(minutes: number) {
 /* ---------------- Main scheduling (primary dose notifications) ---------------- */
 
 export async function scheduleReminderNotifications(med: Medication): Promise<string[]> {
+  const pkg = getNotifeePackage();
+  const notifee = pkg?.default;
+  if (!pkg || !notifee) return [];
+
   const timesList: { hour: number; minute: number }[] =
     // @ts-ignore — some reminders may carry array form (string[])
     med.times && (med as any).times.length > 0
@@ -206,7 +235,7 @@ export async function scheduleReminderNotifications(med: Medication): Promise<st
         body: med.instructions ?? `Dose ${i + 1}${med.dosage ? ` — ${med.dosage}` : ''}`,
         android: {
           channelId: CHANNEL_ID,
-          category: AndroidCategory.REMINDER,
+          category: pkg.AndroidCategory.REMINDER,
           groupId,
           pressAction: { id: 'default' },
           actions: [
@@ -230,6 +259,9 @@ export async function scheduleReminderNotifications(med: Medication): Promise<st
 }
 
 async function scheduleRefillNotifications(med: Medication): Promise<string[]> {
+  const pkg = getNotifeePackage();
+  const notifee = pkg?.default;
+  if (!pkg || !notifee) return [];
   if (!med.endDate || !med.repeatPrescription) return [];
 
   const endDate = new Date(`${med.endDate}T09:00:00`);
@@ -242,6 +274,8 @@ async function scheduleRefillNotifications(med: Medication): Promise<string[]> {
     const reminderDate = new Date(endDate);
     reminderDate.setDate(endDate.getDate() - daysBefore);
     if (reminderDate.getTime() <= Date.now()) continue;
+    const trigger = buildOneTimeTrigger(reminderDate);
+    if (!trigger) continue;
 
     const id = await notifee.createTriggerNotification(
       {
@@ -252,13 +286,13 @@ async function scheduleRefillNotifications(med: Medication): Promise<string[]> {
             : `${daysBefore} days until your prescription end date.`,
         android: {
           channelId: CHANNEL_ID,
-          category: AndroidCategory.REMINDER,
+          category: pkg.AndroidCategory.REMINDER,
           pressAction: { id: 'default' },
         },
         ios: { sound: 'default', interruptionLevel: 'active' },
         data: { kind: 'refill', medId: med.id, daysBefore: String(daysBefore) },
       },
-      buildOneTimeTrigger(reminderDate)
+      trigger
     );
     ids.push(id);
   }
@@ -267,6 +301,8 @@ async function scheduleRefillNotifications(med: Medication): Promise<string[]> {
 }
 
 export async function cancelReminderNotifications(reminderId: string) {
+  const notifee = getNotifee();
+  if (!notifee) return;
   const ids = await loadIds(reminderId);
   if (ids.length) {
     await notifee.cancelTriggerNotifications(ids);
@@ -276,7 +312,11 @@ export async function cancelReminderNotifications(reminderId: string) {
 
 /* ---------------- Smart follow-up handler (foreground + background) ---------------- */
 
-async function coreNotificationHandler({ type, detail }: { type: EventType; detail: any }) {
+async function coreNotificationHandler({ type, detail }: { type: EventTypeValue; detail: any }) {
+  const pkg = getNotifeePackage();
+  const notifee = pkg?.default;
+  if (!pkg || !notifee) return;
+
   const n = detail?.notification;
   const data = n?.data as any;
   if (!data) return;
@@ -295,7 +335,7 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
     const med = medSnap.exists() ? (medSnap.data() as Medication) : null;
     if (!med) return;
 
-    if (type === EventType.ACTION_PRESS && kind === 'dose') {
+    if (type === pkg.EventType.ACTION_PRESS && kind === 'dose') {
       const actionId = detail?.pressAction?.id;
       if (actionId === 'taken') {
         await markDoseTaken({ ...med, id: medId }, doseIndex);
@@ -305,13 +345,15 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
 
       if (actionId === 'snooze') {
         const snoozeTime = new Date(Date.now() + SNOOZE_MINUTES * 60 * 1000);
+        const snoozeTrigger = buildOneTimeTrigger(snoozeTime);
+        if (!snoozeTrigger) return;
         const snoozeId = await notifee.createTriggerNotification(
           {
             title: `Time to take ${med.name}`,
             body: `Snoozed for ${SNOOZE_MINUTES} minutes.`,
             android: {
               channelId: CHANNEL_ID,
-              category: AndroidCategory.REMINDER,
+              category: pkg.AndroidCategory.REMINDER,
               pressAction: { id: 'default' },
               actions: [
                 { title: 'Taken', pressAction: { id: 'taken' } },
@@ -321,7 +363,7 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
             ios: { sound: 'default', interruptionLevel: 'active', categoryId: 'dose-reminder' },
             data: { kind: 'dose', medId, doseIndex: String(doseIndex) },
           },
-          buildOneTimeTrigger(snoozeTime)
+          snoozeTrigger
         );
         await appendIds(medId, [snoozeId]);
         if (n.id) await notifee.cancelNotification(n.id);
@@ -329,7 +371,7 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
       }
     }
 
-    if (type !== EventType.DELIVERED) return;
+    if (type !== pkg.EventType.DELIVERED) return;
     if (kind === 'refill') return;
 
     const today = todayISO();
@@ -342,8 +384,9 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
 
       const delayMin = await getFollowUpDelayMinutes();
       const followUpTime = new Date(Date.now() + delayMin * 60 * 1000);
+      const triggerType = pkg.TriggerType.TIMESTAMP;
       const followUpTrigger: TimestampTrigger = {
-        type: TriggerType.TIMESTAMP,
+        type: triggerType,
         timestamp: followUpTime.getTime(),
       };
 
@@ -353,7 +396,7 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
           body: `It's been ${delayMin} minutes since your dose time.`,
           android: {
             channelId: CHANNEL_ID,
-            category: AndroidCategory.REMINDER,
+            category: pkg.AndroidCategory.REMINDER,
             pressAction: { id: 'default' },
           },
           ios: { sound: 'default', interruptionLevel: 'active' },
@@ -380,17 +423,25 @@ async function coreNotificationHandler({ type, detail }: { type: EventType; deta
 
 // Foreground registration (call once in App.tsx)
 export function registerForegroundNotificationHandlers() {
-  notifee.onForegroundEvent(coreNotificationHandler);
+  const notifee = getNotifee();
+  if (!notifee) return;
+  try {
+    notifee.onForegroundEvent(coreNotificationHandler);
+  } catch (e) {
+    console.warn('notifee foreground registration failed', e);
+  }
 }
 
 // Background handler (register in index.js)
-export async function backgroundNotificationHandler(event: { type: EventType; detail: any }) {
+export async function backgroundNotificationHandler(event: { type: EventTypeValue; detail: any }) {
   await coreNotificationHandler(event);
 }
 
 /* ---------------- Manual test ---------------- */
 
 export async function debugTestNotification() {
+  const notifee = getNotifee();
+  if (!notifee) return;
   await notifee.displayNotification({
     title: 'Test notification',
     body: 'If you see this, notifications are working ✅',

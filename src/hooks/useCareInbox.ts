@@ -1,6 +1,5 @@
 // src/hooks/useCareInbox.ts
 import { useEffect } from 'react';
-import notifee from '@notifee/react-native';
 import { auth, db } from '../firebase';
 import {
   collection,
@@ -11,6 +10,16 @@ import {
   DocumentData,
   Unsubscribe,
 } from 'firebase/firestore';
+
+function getNotifee() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('@notifee/react-native').default;
+  } catch (e) {
+    console.warn('care inbox notifications unavailable', e);
+    return null;
+  }
+}
 
 /**
  * Listens for caregiver inbox events (e.g., missed doses) and
@@ -53,12 +62,15 @@ export default function useCareInbox() {
             const who = data.patientName || 'Patient';
             const what = data.medName || 'a dose';
             try {
-              await notifee.displayNotification({
-                title: 'Missed dose alert',
-                body: `${who} missed ${what}`,
-                android: { channelId: 'notification' },
-                ios: { sound: 'default' },
-              });
+              const notifee = getNotifee();
+              if (notifee) {
+                await notifee.displayNotification({
+                  title: 'Missed dose alert',
+                  body: `${who} missed ${what}`,
+                  android: { channelId: 'notification' },
+                  ios: { sound: 'default' },
+                });
+              }
             } catch (e) {
               // don't block marking delivered if display fails
               console.warn('notifee display failed', e);
