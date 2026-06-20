@@ -1,49 +1,47 @@
 #import "AppDelegate.h"
-#import <React/RCTBridge.h>
 #import <React/RCTBundleURLProvider.h>
-#import <React/RCTRootView.h>
 #import <React/RCTLinkingManager.h>
-#import <UIKit/UIKit.h>
-
-// ✅ Import Firebase the ObjC way
-#import <Firebase.h>
+#import <ReactAppDependencyProvider/RCTAppDependencyProvider.h>
 
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  // ✅ Configure Firebase early
-  if ([FIRApp defaultApp] == nil) {
-    [FIRApp configure];
-  }
+  self.moduleName = @"PharmAI";
+  self.dependencyProvider = [RCTAppDependencyProvider new];
+  self.initialProps = @{};
 
-  NSURL *jsCodeLocation;
-  jsCodeLocation = [NSURL URLWithString:@"http://192.168.1.175:8081/index.bundle?platform=ios"];
-
-  RCTBridge *bridge = [[RCTBridge alloc] initWithBundleURL:jsCodeLocation
-                                            moduleProvider:nil
-                                             launchOptions:launchOptions];
-
-  RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:bridge
-                                                   moduleName:@"PharmAI"
-                                            initialProperties:nil];
-  rootView.backgroundColor = [UIColor whiteColor];
-
-  self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-  UIViewController *rootViewController = [UIViewController new];
-  rootViewController.view = rootView;
-  self.window.rootViewController = rootViewController;
-  [self.window makeKeyAndVisible];
-
-  return YES;
+  return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
 
-// Optional: support deep linking
+- (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
+{
+  return [self bundleURL];
+}
+
+- (NSURL *)bundleURL
+{
+#if DEBUG
+  return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];
+#else
+  return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
+#endif
+}
+
 - (BOOL)application:(UIApplication *)application
             openURL:(NSURL *)url
             options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
 {
-  return [RCTLinkingManager application:application openURL:url options:options];
+  return [super application:application openURL:url options:options] ||
+    [RCTLinkingManager application:application openURL:url options:options];
+}
+
+- (BOOL)application:(UIApplication *)application
+continueUserActivity:(nonnull NSUserActivity *)userActivity
+ restorationHandler:(nonnull void (^)(NSArray<id<UIUserActivityRestoring>> * _Nullable))restorationHandler
+{
+  return [super application:application continueUserActivity:userActivity restorationHandler:restorationHandler] ||
+    [RCTLinkingManager application:application continueUserActivity:userActivity restorationHandler:restorationHandler];
 }
 
 @end

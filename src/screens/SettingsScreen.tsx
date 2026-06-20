@@ -22,7 +22,6 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { setFollowUpDelayMinutes, debugTestNotification } from '../utils/notifications';
-import { registerCaregiverTokenNow } from '../utils/fcmDebug';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -33,9 +32,6 @@ export default function SettingsScreen() {
   const [delayValue, setDelayValue] = useState('60');
   const [loadingDelay, setLoadingDelay] = useState(true);
   const [savingDelay, setSavingDelay] = useState(false);
-
-  // FCM UI state
-  const [registeringToken, setRegisteringToken] = useState(false);
 
   // ---- Load local prefs ----
   useEffect(() => {
@@ -96,22 +92,6 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Could not save the setting. Please try again.');
     } finally {
       setSavingDelay(false);
-    }
-  };
-
-  const handleRegisterFcm = async () => {
-    try {
-      setRegisteringToken(true);
-      await registerCaregiverTokenNow();
-      Alert.alert(
-        'Device registered',
-        'This device is now registered for care alerts. (Use a physical iPhone for push tests.)'
-      );
-    } catch (e: any) {
-      console.warn('registerCaregiverTokenNow failed', e);
-      Alert.alert('Registration failed', e?.message || 'Could not register this device token.');
-    } finally {
-      setRegisteringToken(false);
     }
   };
 
@@ -183,22 +163,13 @@ export default function SettingsScreen() {
             </>
           )}
 
-          {/* Care alerts (FCM) */}
+          {/* Care alerts */}
           <Text style={styles.sectionTitle}>Caregiver Alerts</Text>
           <Text style={[styles.label, { marginBottom: 8 }]}>
-            Register this device to receive care alerts for your linked patients.
+            Caregiver alerts appear from your linked patient inbox while PharmAI is active.
           </Text>
-          <Pressable
-            onPress={handleRegisterFcm}
-            disabled={registeringToken}
-            style={[styles.saveBtn, { backgroundColor: registeringToken ? '#9EC9FF' : '#0A84FF' }]}
-          >
-            <Text style={styles.saveBtnText}>
-              {registeringToken ? 'Registering…' : 'Register device for care alerts'}
-            </Text>
-          </Pressable>
           <Text style={{ color: '#6b7280', marginBottom: 16 }}>
-            Tip: Push notifications require a physical iPhone (the iOS Simulator cannot receive APNs).
+            Remote push delivery can be added later without blocking the current TestFlight build.
           </Text>
 
           {/* Pharmacy tools */}
