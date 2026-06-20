@@ -19,6 +19,7 @@ boost_1_76_0/
 *.xcworkspace
 *.xcuserdata/
 *.xcuserstate
+ios/.xcode.env.local
 DerivedData/
 *.pbxuser
 

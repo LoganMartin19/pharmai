@@ -39,6 +39,14 @@ type SponsoredPartner = {
   responseWindowMinutes?: number;
 };
 
+const AVAILABILITY_STATUSES: Array<NonNullable<Pharmacy['availabilityStatus']>> = [
+  'available_now',
+  'usually_available',
+  'order_by_tomorrow',
+  'call_to_confirm',
+  'out_of_stock',
+];
+
 function timestampMillis(value: any): number | undefined {
   if (!value) return undefined;
   if (typeof value.toMillis === 'function') return value.toMillis();
@@ -83,18 +91,21 @@ async function getSponsoredPartners(): Promise<SponsoredPartner[]> {
     const snap = await getDocs(query(collection(db, 'pharmacyPartners'), where('active', '==', true)));
     const now = Date.now();
     return snap.docs
-      .map((docSnap) => {
+      .map((docSnap): SponsoredPartner | null => {
         const data = docSnap.data() as any;
         const startsAt = timestampMillis(data.startsAt);
         const endsAt = timestampMillis(data.endsAt);
         if (startsAt && startsAt > now) return null;
         if (endsAt && endsAt < now) return null;
+        const availabilityStatus = AVAILABILITY_STATUSES.includes(data.availabilityStatus)
+          ? data.availabilityStatus
+          : undefined;
 
         return {
           id: docSnap.id,
           matcher: String(data.matcher || data.name || '').trim().toLowerCase(),
           tier: Math.max(1, Number(data.tier || 1)),
-          availabilityStatus: data.availabilityStatus,
+          availabilityStatus,
           acceptsRefillRequests: data.acceptsRefillRequests !== false,
           responseWindowMinutes: Number(data.responseWindowMinutes || 60),
         };

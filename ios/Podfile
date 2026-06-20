@@ -1,214 +1,64 @@
-platform :ios, '16.0'
+require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
+require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
-# Keep CocoaPods autolinking on the Paper architecture from the start. Some EAS
-# images expose this env var before use_react_native! runs, and podspecs such as
-# react-native-screens read it during use_native_modules!.
-ENV['RCT_NEW_ARCH_ENABLED'] = '0'
+require 'json'
+podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
-require_relative '../node_modules/react-native/scripts/react_native_pods'
+def ccache_enabled?(podfile_properties)
+  return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
 
-use_frameworks! :linkage => :static
+  podfile_properties['apple.ccacheEnabled'] == 'true'
+end
+
+ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
+ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
+ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+
+platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+
+prepare_react_native_project!
 
 target 'PharmAI' do
-  config = use_native_modules!
+  use_expo_modules!
+
+  if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+    config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"]
+  else
+    config_command = [
+      'npx',
+      'expo-modules-autolinking',
+      'react-native-config',
+      '--json',
+      '--platform',
+      'ios'
+    ]
+  end
+
+  config = use_native_modules!(config_command)
+
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
   use_react_native!(
     :path => config[:reactNativePath],
-    :hermes_enabled => false,
-    :fabric_enabled => false,
-    :new_arch_enabled => false
+    :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false'
   )
 
-  # ✅ Fix gRPC/JSI-related linker issues
-  pod 'gRPC-Core', :modular_headers => true
-  pod 'gRPC-C++', :modular_headers => true
-  pod 'gRPC', :modular_headers => true
-  pod 'abseil', :modular_headers => true
-  pod 'BoringSSL-GRPC', :modular_headers => true
-  pod 'leveldb-library', :modular_headers => true
-
-  target 'PharmAITests' do
-    inherit! :complete
-  end
-
   post_install do |installer|
-    react_native_post_install(installer)
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      :ccache_enabled => ccache_enabled?(podfile_properties)
+    )
 
     installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        # 🧱 General build settings
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
-        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
-        config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
-        config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
-        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-
-        cxxflags = config.build_settings['OTHER_CPLUSPLUSFLAGS'] || '$(inherited)'
-        cxxflags_array = cxxflags.is_a?(String) ? [cxxflags] : cxxflags
-        cxxflags_array += ['-Wno-error=deprecated-literal-operator', '-Wno-deprecated-literal-operator']
-        cxxflags_array += ['-DFOLLY_HAVE_CLOCK_GETTIME=1'] if target.name == 'RCT-Folly'
-        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cxxflags_array
-
-        # 🧩 Fix missing system libraries
-        config.build_settings['OTHER_LDFLAGS'] ||= '$(inherited)'
-        ldflags = config.build_settings['OTHER_LDFLAGS']
-        ldflags_array = ldflags.is_a?(String) ? [ldflags] : ldflags
-        ldflags_array += ['-lc++', '-lc++abi', '-licucore', '-lz']
-        config.build_settings['OTHER_LDFLAGS'] = ldflags_array
+      target.build_configurations.each do |build_config|
+        build_config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
-
-      # ✅ Fix for RNReanimated
-      if target.name == 'RNReanimated'
-        target.build_configurations.each do |config|
-          config.build_settings['USE_HERMES'] = 'NO'
-          config.build_settings['DEFINES_MODULE'] = 'YES'
-        end
-      end
-
-      # ✅ Fix for RNScreens
-      if target.name == 'RNScreens'
-        target.build_configurations.each do |config|
-          config.build_settings['DEFINES_MODULE'] = 'YES'
-        end
-
-        # react-native-screens 4.x ships Fabric-only split-view/conversion
-        # sources that import generated rnscreens headers. This app is still on
-        # Paper/RN 0.72, so those headers are not generated and EAS archives fail.
-        # Keep bottom-tabs controllers: RNSScreen/RNSScreenStack still link them.
-        target.source_build_phase.files.dup.each do |build_file|
-          file_ref = build_file.file_ref
-          path = file_ref&.real_path.to_s
-          if path.include?('/gamma/') || path.include?('/conversion/')
-            target.source_build_phase.remove_build_file(build_file)
-          end
-        end
-      end
-    end
-
-    # iOS 26 SDK declares clockid_t as an enum. Older RCT-Folly also declares it
-    # as uint8_t in its Apple fallback path, which breaks archive builds.
-    folly_time = "Pods/RCT-Folly/folly/portability/Time.h"
-    if File.exist?(folly_time)
-      File.chmod(0644, folly_time) rescue nil
-      text = File.read(folly_time)
-      patched = text
-        .gsub(
-          '#if !FOLLY_HAVE_CLOCK_GETTIME && (defined(__MACH__) || defined(_WIN32))',
-          '#if !FOLLY_HAVE_CLOCK_GETTIME && defined(_WIN32)'
-        )
-        .gsub(
-          /#ifndef __clockid_t_defined\n(?:#define __clockid_t_defined\n|\/\/#ifndef __clockid_t_defined\n)*#endif\n?/,
-          "/* PharmAI: clockid_t is provided by modern iOS SDKs. */\n"
-        )
-        .gsub(
-          /^\s*typedef uint8_t clockid_t;\s*$/,
-          "/* PharmAI: clockid_t typedef removed; provided by the SDK. */"
-        )
-      if patched.include?('typedef uint8_t clockid_t;') ||
-          patched.include?('#if !FOLLY_HAVE_CLOCK_GETTIME && (defined(__MACH__) || defined(_WIN32))')
-        raise 'Failed to patch RCT-Folly clockid_t fallback for modern iOS SDKs'
-      end
-      File.write(folly_time, patched)
-    end
-
-    # React Native 0.72 Yoga expects YGMeasureFunc to receive YGNodeRef. Some
-    # datetimepicker releases use YGNodeConstRef, which newer EAS/Xcode treats
-    # as an incompatible function pointer error.
-    datetimepicker_shadow = "../node_modules/@react-native-community/datetimepicker/ios/RNDateTimePickerShadowView.m"
-    if File.exist?(datetimepicker_shadow)
-      File.chmod(0644, datetimepicker_shadow) rescue nil
-      text = File.read(datetimepicker_shadow)
-      patched = text.gsub(
-        'static YGSize RNDateTimePickerShadowViewMeasure(YGNodeConstRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)',
-        'static YGSize RNDateTimePickerShadowViewMeasure(YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)'
-      )
-      if patched.include?('RNDateTimePickerShadowViewMeasure(YGNodeConstRef node')
-        raise 'Failed to patch RNDateTimePicker Yoga measure callback for React Native 0.72'
-      end
-      File.write(datetimepicker_shadow, patched)
-    end
-
-    # Newer react-native-screens uses Objective-C number literals in constexpr
-    # variables, which C++ rejects when compiling RN 0.72 pods with Xcode 16+.
-    screens_header_config = "../node_modules/react-native-screens/ios/RNSScreenStackHeaderConfig.mm"
-    if File.exist?(screens_header_config)
-      File.chmod(0644, screens_header_config) rescue nil
-      text = File.read(screens_header_config)
-      patched = text
-        .gsub(
-          'static constexpr auto DEFAULT_TITLE_FONT_SIZE = @17;',
-          'static NSNumber *RNSDefaultTitleFontSize(void) { return @17; }'
-        )
-        .gsub(
-          'static constexpr auto DEFAULT_TITLE_LARGE_FONT_SIZE = @34;',
-          'static NSNumber *RNSDefaultTitleLargeFontSize(void) { return @34; }'
-        )
-        .gsub('?: DEFAULT_TITLE_FONT_SIZE', '?: RNSDefaultTitleFontSize()')
-        .gsub('?: DEFAULT_TITLE_LARGE_FONT_SIZE', '?: RNSDefaultTitleLargeFontSize()')
-      if patched.include?('static constexpr auto DEFAULT_TITLE_FONT_SIZE') ||
-          patched.include?('static constexpr auto DEFAULT_TITLE_LARGE_FONT_SIZE')
-        raise 'Failed to patch react-native-screens header font defaults for Xcode'
-      end
-      File.write(screens_header_config, patched)
-    end
-
-    # The legacy bottom-tabs files import RNSConversions.h for shared enum/image
-    # types, but its Fabric conversion functions require generated Props.h.
-    screens_conversions_header = "../node_modules/react-native-screens/ios/conversion/RNSConversions.h"
-    if File.exist?(screens_conversions_header)
-      File.chmod(0644, screens_conversions_header) rescue nil
-      text = File.read(screens_conversions_header)
-      patched = text
-        .gsub(
-          "#if defined(__cplusplus)\n#import <react/renderer/components/rnscreens/Props.h>\n#import <React/RCTImageSource.h>\n#import \"RNSEnums.h\"\n\nnamespace",
-          "#if defined(__cplusplus)\n#import <React/RCTImageSource.h>\n#import \"RNSEnums.h\"\n\n#if RCT_NEW_ARCH_ENABLED\n#import <react/renderer/components/rnscreens/Props.h>\n\nnamespace"
-        )
-        .gsub(
-          "}; // namespace rnscreens::conversion\n\n#endif",
-          "}; // namespace rnscreens::conversion\n#endif // RCT_NEW_ARCH_ENABLED\n\n#endif"
-        )
-      if patched.include?('#import <react/renderer/components/rnscreens/Props.h>') &&
-          !patched.include?('#if RCT_NEW_ARCH_ENABLED')
-        raise 'Failed to guard react-native-screens conversion header for Paper builds'
-      end
-      File.write(screens_conversions_header, patched)
-    end
-
-    screens_bottom_tabs_host = "../node_modules/react-native-screens/ios/bottom-tabs/RNSBottomTabsHostComponentView.mm"
-    if File.exist?(screens_bottom_tabs_host)
-      File.chmod(0644, screens_bottom_tabs_host) rescue nil
-      text = File.read(screens_bottom_tabs_host)
-      patched = text.gsub(
-        "\nnamespace react = facebook::react;\n",
-        "\n#if RCT_NEW_ARCH_ENABLED\nnamespace react = facebook::react;\n#endif // RCT_NEW_ARCH_ENABLED\n"
-      )
-      if patched.include?("\nnamespace react = facebook::react;\n") &&
-          !patched.include?("\n#if RCT_NEW_ARCH_ENABLED\nnamespace react = facebook::react;\n")
-        raise 'Failed to guard react-native-screens bottom-tabs namespace for Paper builds'
-      end
-      File.write(screens_bottom_tabs_host, patched)
-    end
-
-    # Some EAS images expose RCT_NEW_ARCH_ENABLED=0 to pods. react-native-screens
-    # has guards that use #ifdef, which treats a 0-valued macro as enabled and
-    # tries to import Fabric codegen headers that do not exist in this Paper app.
-    Dir.glob("../node_modules/react-native-screens/ios/**/*.{h,m,mm}").each do |screens_file|
-      text = File.read(screens_file)
-      patched = text
-        .gsub('#ifdef RCT_NEW_ARCH_ENABLED', '#if RCT_NEW_ARCH_ENABLED')
-        .gsub('#ifndef RCT_NEW_ARCH_ENABLED', '#if !RCT_NEW_ARCH_ENABLED')
-        .gsub('#if !defined(RCT_NEW_ARCH_ENABLED)', '#if !RCT_NEW_ARCH_ENABLED')
-      File.write(screens_file, patched) if patched != text
-    end
-
-    Dir.glob("Pods/Target Support Files/Pods-*/Pods-*-resources.sh").each do |resources_script|
-      text = File.read(resources_script)
-      patched = text.gsub(
-        'echo "$(realpath -mq "${0}"):$1: error: Unexpected failure"',
-        'echo "$(realpath -q "${0}" 2>/dev/null || echo "${0}"):$1: error: Unexpected failure"'
-      )
-      File.write(resources_script, patched)
     end
   end
 end
