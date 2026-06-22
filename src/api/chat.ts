@@ -2,8 +2,8 @@ import { auth } from '../firebase';
 import type { Msg } from '../types/chat';
 
 const CHAT_URLS = [
-  'https://us-central1-pharmai-d45ab.cloudfunctions.net/chat',
   'https://chat-b7oxnbcw3q-uc.a.run.app/chat',
+  'https://us-central1-pharmai-d45ab.cloudfunctions.net/chat',
 ];
 
 export async function sendChatMessage(messages: Msg[], chatId?: string): Promise<{ reply: string; chatId?: string }> {

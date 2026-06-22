@@ -2,7 +2,8 @@
 import { doc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
-const BASE = 'https://us-central1-pharmai-d45ab.cloudfunctions.net';
+const CREATE_INVITE_URL = 'https://createinvite-b7oxnbcw3q-uc.a.run.app';
+const ACCEPT_INVITE_URL = 'https://acceptinvite-b7oxnbcw3q-uc.a.run.app';
 
 function randomInviteId(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -17,7 +18,7 @@ export async function createInvite() {
   const user = auth.currentUser!;
   const token = await user.getIdToken();
   try {
-    const res = await fetch(`${BASE}/createInvite`, {
+    const res = await fetch(CREATE_INVITE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
     });
@@ -39,7 +40,7 @@ export async function createInvite() {
 export async function acceptInvite(inviteId: string, displayName?: string) {
   const user = auth.currentUser!;
   const token = await user.getIdToken();
-  const res = await fetch(`${BASE}/acceptInvite`, {
+  const res = await fetch(ACCEPT_INVITE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ inviteId, caregiverDisplayName: displayName })

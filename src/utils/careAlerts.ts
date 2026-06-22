@@ -2,15 +2,7 @@
 import { auth } from '../firebase';
 import type { Medication } from '../types/Medication';
 
-const PROJECT_ID = 'pharmai-d45ab';
-const REGION = 'us-central1';
-
-// Base for Firebase Functions
-const FUNCTIONS_BASE = __DEV__
-  // Emulator (ensure you run: firebase emulators:start)
-  ? `http://127.0.0.1:5001/${PROJECT_ID}/${REGION}`
-  // Deployed URL
-  : `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+const REPORT_MISSED_DOSE_URL = 'https://reportmisseddose-b7oxnbcw3q-uc.a.run.app';
 
 function withTimeout<T>(p: Promise<T>, ms = 8000) {
   return Promise.race([
@@ -29,10 +21,8 @@ export async function pingCaregivers(med: Medication, doseIndex: number) {
     const idToken = await u.getIdToken();
     const todayISO = new Date().toISOString().slice(0, 10);
 
-    const url = `${FUNCTIONS_BASE}/reportMissedDose`;
-
     const resp = await withTimeout(
-      fetch(url, {
+      fetch(REPORT_MISSED_DOSE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
