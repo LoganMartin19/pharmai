@@ -1,17 +1,39 @@
 // utils/careApi.ts
-import { auth } from '../firebase';
+import { doc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 
 const BASE = 'https://us-central1-pharmai-d45ab.cloudfunctions.net';
+
+function randomInviteId(length = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < length; i += 1) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
 
 export async function createInvite() {
   const user = auth.currentUser!;
   const token = await user.getIdToken();
-  const res = await fetch(`${BASE}/createInvite`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<{ inviteId: string; expiresAt: string }>;
+  try {
+    const res = await fetch(`${BASE}/createInvite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<{ inviteId: string; expiresAt: string }>;
+  } catch (error) {
+    const inviteId = randomInviteId();
+    const expires = new Date(Date.now() + 30 * 60 * 1000);
+    await setDoc(doc(db, 'careInvites', inviteId), {
+      patientUid: user.uid,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromDate(expires),
+      status: 'active',
+    });
+    return { inviteId, expiresAt: expires.toISOString() };
+  }
 }
 
 export async function acceptInvite(inviteId: string, displayName?: string) {

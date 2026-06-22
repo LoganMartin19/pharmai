@@ -21,9 +21,7 @@ import SafeLayout from '../components/SafeLayout';
 import { auth, db } from '../firebase';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import HomeHealthHeader from '../components/HomeHealthHeader';
-
-const ICONS = ['🌅', '☀️', '🌙'];
-const LABELS = ['Morning', 'Afternoon', 'Evening'];
+import { doseCount, doseIcon, doseLabel, medicationTimes } from '../utils/doseSchedule';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type TabNav = BottomTabNavigationProp<HomeTabParamList>;
@@ -91,13 +89,9 @@ export default function HomeScreen() {
   const renderMeCard = ({ item }: { item: Medication }) => {
     const today = new Date().toISOString().split('T')[0];
     const todayHistory = item.history?.find((h) => h.date === today);
-    const freq =
-      item.frequency === 'Twice daily'
-        ? 2
-        : item.frequency === 'Three times daily'
-        ? 3
-        : 1;
+    const freq = doseCount(item.frequency);
     const takenArray = todayHistory?.taken || Array(freq).fill(false);
+    const times = medicationTimes(item);
 
     return (
       <Pressable style={styles.card}>
@@ -136,11 +130,11 @@ export default function HomeScreen() {
                     { fontSize: 14 },
                   ]}
                 >
-                  {takenArray[index] ? '✅' : ICONS[index] || '💊'}
+                  {takenArray[index] ? '✅' : doseIcon(times[index])}
                 </Text>
               </Pressable>
               <Text style={{ marginTop: 6, fontSize: 13, color: '#555' }}>
-                {LABELS[index] || `Dose ${index + 1}`}
+                {doseLabel(times[index], index)}
               </Text>
             </View>
           ))}

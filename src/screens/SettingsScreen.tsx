@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  Button,
   Alert,
   Switch,
   Pressable,
@@ -114,6 +113,9 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Account Details</Text>
           <Text style={styles.label}>Name</Text>
           <TextInput style={styles.input} value={userName} editable={false} />
+          <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutBtnText}>Log out</Text>
+          </Pressable>
 
           {/* Preferences */}
           <Text style={styles.sectionTitle}>Preferences</Text>
@@ -188,9 +190,6 @@ export default function SettingsScreen() {
           </Pressable>
 
           <View style={styles.separator} />
-
-          {/* Logout */}
-          <Button title="Log Out" color="red" onPress={handleLogout} />
         </View>
       </KeyboardAvoidingView>
     </SafeLayout>
@@ -234,5 +233,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   portalBtnText: { color: '#0A53B8', fontWeight: '700' },
+  logoutBtn: {
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    backgroundColor: '#fef2f2',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoutBtnText: { color: '#b91c1c', fontWeight: '800' },
   separator: { height: 24 },
 });

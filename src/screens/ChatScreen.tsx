@@ -4,6 +4,7 @@ import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { Msg } from '../types/chat';
 import { sendChatMessage } from '../api/chat';
+import SafeLayout from '../components/SafeLayout';
 
 type ChatRoute = RouteProp<RootStackParamList, 'Chat'>;
 
@@ -62,10 +63,11 @@ export default function ChatScreen() {
   }, [input, messages, chatId]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.select({ ios: 'padding', android: undefined })}>
+    <SafeLayout style={styles.safe}>
+    <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.select({ ios: 'padding', android: undefined })}>
       <FlatList
         ref={listRef}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.messages}
         data={[...messages, ...(loading ? [{ role: 'assistant', content: '__typing__' } as Msg] : [])]}
         keyExtractor={(_, i) => String(i)}
         renderItem={({ item }) => {
@@ -80,7 +82,7 @@ export default function ChatScreen() {
           const mine = item.role === 'user';
           return (
             <View style={[styles.bubble, mine ? styles.user : styles.bot]}>
-              <Text style={mine ? styles.userText : styles.botText}>{item.content}</Text>
+              <Text style={[styles.messageText, mine ? styles.userText : styles.botText]}>{item.content}</Text>
             </View>
           );
         }}
@@ -99,13 +101,18 @@ export default function ChatScreen() {
         </Pressable>
       </View>
     </KeyboardAvoidingView>
+    </SafeLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  bubble: { marginBottom: 10, maxWidth: '80%', padding: 10, borderRadius: 12 },
+  safe: { paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 },
+  keyboard: { flex: 1 },
+  messages: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 },
+  bubble: { marginBottom: 10, maxWidth: '78%', padding: 10, borderRadius: 12, flexShrink: 1 },
   user: { alignSelf: 'flex-end', backgroundColor: '#0A84FF' },
   bot: { alignSelf: 'flex-start', backgroundColor: '#EEE' },
+  messageText: { flexShrink: 1, flexWrap: 'wrap', lineHeight: 20 },
   userText: { color: '#fff' },
   botText: { color: '#111' },
   inputRow: { flexDirection: 'row', padding: 10, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#e5e7eb' },

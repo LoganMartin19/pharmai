@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import DateTimePicker, { IOSNativeProps } from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useReminders } from '../context/RemindersContext';
 import SafeLayout from '../components/SafeLayout';
@@ -23,6 +24,7 @@ import { RootStackParamList } from '../navigation/MainNavigator';
 
 type Freq = 'Once daily' | 'Twice daily' | 'Three times daily';
 type R = RouteProp<RootStackParamList, 'AddReminder'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'AddReminder'>;
 
 function parseFirstTimeFromPrefill(time?: string | string[]) {
   if (!time) return undefined;
@@ -43,7 +45,7 @@ function parseFirstTimeFromPrefill(time?: string | string[]) {
 
 export default function AddReminderScreen() {
   const route = useRoute<R>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const { addReminder, updateReminder } = useReminders();
 
   // If we navigated here to EDIT an existing medication
@@ -64,7 +66,12 @@ export default function AddReminderScreen() {
     (original?.frequency as Freq) ??
       ((prefill.frequency as Freq) ?? 'Once daily')
   );
-  const [hoursApart, setHoursApart] = useState('4');
+  const [hoursApart, setHoursApart] = useState(() => {
+    const frequency = (original?.frequency as Freq) ?? ((prefill.frequency as Freq) ?? 'Once daily');
+    if (frequency === 'Three times daily') return '8';
+    if (frequency === 'Twice daily') return '12';
+    return '4';
+  });
 
   const initialStart = useMemo(() => {
     // Use the first time from original, then prefill, else now
@@ -142,6 +149,7 @@ export default function AddReminderScreen() {
       dosage: selectedDosage,
       frequency: selectedFrequency,
       time: times.join(', '),
+      times,
       instructions: `Take ${selectedDosage}, ${selectedFrequency.toLowerCase()}`,
       repeatPrescription,
       startDate:
@@ -159,7 +167,11 @@ export default function AddReminderScreen() {
       await addReminder(payload);    // create new
     }
 
-    navigation.goBack();
+    if (editing) {
+      navigation.goBack();
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    }
   };
 
   // iOS picker props

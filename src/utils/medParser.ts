@@ -65,20 +65,20 @@ type Parsed = {
     const t = ` ${text.toLowerCase()} `;
   
     // plain language
-    if (/\btwice(?:\s+(?:a|per))?\s+day\b|\btwice\s+daily\b/.test(t)) {
+    if (/\b(?:2|two)\s*x\s*(?:a|per)?\s*day\b|\b(?:2|two)\s*(?:times\s+)?(?:a|per)\s+day\b|\btwice(?:\s+(?:a|per))?\s+day\b|\btwice\s+daily\b/.test(t)) {
       return { frequency: 'Twice daily' };
     }
-    if (/\b(?:three|3)\s+(?:times\s+)?(?:(?:a|per)\s+day|daily)\b/.test(t)) {
+    if (/\b(?:3|three)\s*x\s*(?:a|per)?\s*day\b|\b(?:3|three)\s*(?:times\s+)?(?:(?:a|per)\s+day|daily)\b/.test(t)) {
       return { frequency: 'Three times daily' };
     }
-    if (/\bonce(?:\s+(?:a|per))?\s+day\b|\bonce\s+daily\b|\bdaily\b/.test(t)) {
+    if (/\b(?:1|one)\s*x\s*(?:a|per)?\s*day\b|\bonce(?:\s+(?:a|per))?\s+day\b|\bonce\s+daily\b|\bdaily\b/.test(t)) {
       return { frequency: 'Once daily' };
     }
   
     // abbreviations
     if (/\bod\b/.test(t)) return { frequency: 'Once daily' };  // omni die
     if (/\bbid\b/.test(t)) return { frequency: 'Twice daily' };
-    if (/\btid\b/.test(t)) return { frequency: 'Three times daily' };
+    if (/\btid\b|\btds\b/.test(t)) return { frequency: 'Three times daily' };
   
     // every N hours
     const every = t.match(/\bevery\s+(\d+|\w+)\s+hours?\b/);

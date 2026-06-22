@@ -45,7 +45,7 @@ export default function LoginScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder="Username / email"
         keyboardType="email-address"
         autoCapitalize="none"
         onChangeText={setEmail}

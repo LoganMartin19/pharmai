@@ -20,12 +20,10 @@ import { auth, db } from '../firebase';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import SafeLayout from '../components/SafeLayout';
 import styles from './styles/HomeScreen.styles';
+import { doseCount, doseIcon, doseLabel, medicationTimes } from '../utils/doseSchedule';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CarePatient'>;
 type Route = RouteProp<RootStackParamList, 'CarePatient'>;
-
-const ICONS = ['🌅', '☀️', '🌙'];
-const LABELS = ['Morning', 'Afternoon', 'Evening'];
 
 type DayStat = { date: string; taken: number; total: number; pct: number };
 type MedStat = { id: string; name: string; taken: number; total: number; pct: number };
@@ -123,10 +121,9 @@ export default function CarePatientScreen() {
   const renderCard = ({ item }: { item: Medication }) => {
     const today = new Date().toISOString().split('T')[0];
     const todayHistory = item.history?.find((h) => h.date === today);
-    const freq =
-      item.frequency === 'Twice daily' ? 2 :
-      item.frequency === 'Three times daily' ? 3 : 1;
+    const freq = doseCount(item.frequency);
     const takenArray = todayHistory?.taken || Array(freq).fill(false);
+    const times = medicationTimes(item);
 
     return (
       <View style={styles.card}>
@@ -145,11 +142,11 @@ export default function CarePatientScreen() {
                 ]}
               >
                 <Text style={[styles.buttonText, takenArray[index] && styles.buttonTextTaken, { fontSize: 14 }]}>
-                  {takenArray[index] ? '✅' : ICONS[index] || '💊'}
+                  {takenArray[index] ? '✅' : doseIcon(times[index])}
                 </Text>
               </View>
               <Text style={{ marginTop: 6, fontSize: 13, color: '#555' }}>
-                {LABELS[index] || `Dose ${index + 1}`}
+                {doseLabel(times[index], index)}
               </Text>
             </View>
           ))}
