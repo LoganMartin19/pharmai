@@ -8,6 +8,7 @@ const STORAGE_KEY = 'menstrual:cycles';
 type Cycle = { startDate: string; heavyDate?: string; lastDate?: string };
 
 function toDate(s: string) { return new Date(`${s}T00:00:00`); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 function daysBetween(a: string, b: string) {
   return Math.round((toDate(b).getTime() - toDate(a).getTime()) / 86400000);
 }
@@ -28,7 +29,7 @@ export default function HomeHealthHeader({ onOpen }: { onOpen?: () => void }) {
     })();
   }, []);
 
-  const nextStart = useMemo(() => {
+  const summary = useMemo(() => {
     if (!cycles.length) return null;
     const sorted = [...cycles].sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
     const latest = sorted[0];
@@ -42,10 +43,14 @@ export default function HomeHealthHeader({ onOpen }: { onOpen?: () => void }) {
     }
     const avgCycle = Math.round(diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 28);
 
-    return addDays(latest.startDate, avgCycle);
+    const nextStart = addDays(latest.startDate, avgCycle);
+    const daysToNext = daysBetween(todayISO(), nextStart);
+    const cycleDay = Math.max(1, daysBetween(latest.startDate, todayISO()) + 1);
+
+    return { nextStart, daysToNext, cycleDay };
   }, [cycles]);
 
-  if (!nextStart) return null;
+  if (!summary) return null;
 
   const handleOpen = () => {
     // Let parent decide how to navigate (simplest: navigation.navigate('Health'))
@@ -58,18 +63,22 @@ export default function HomeHealthHeader({ onOpen }: { onOpen?: () => void }) {
       style={{
         marginHorizontal: 16,
         marginBottom: 12,
-        backgroundColor: '#FFF4F5',
+        backgroundColor: '#F8FAFC',
         borderRadius: 12,
         padding: 12,
         borderWidth: 1,
-        borderColor: '#fee2e2',
+        borderColor: '#E5E7EB',
       }}
     >
-      <Text style={{ fontWeight: '700' }}>🩸 Menstrual</Text>
-      <Text style={{ marginTop: 4 }}>
-        Next period expected: <Text style={{ fontWeight: '700' }}>{nextStart}</Text>
+      <Text style={{ fontWeight: '800', color: '#111827' }}>Cycle tracker</Text>
+      <Text style={{ marginTop: 4, color: '#475467' }}>
+        Cycle day <Text style={{ fontWeight: '800' }}>{summary.cycleDay}</Text>
+        {' '}• next expected{' '}
+        <Text style={{ fontWeight: '800' }}>
+          {summary.daysToNext <= 0 ? 'now' : `${summary.daysToNext}d`}
+        </Text>
       </Text>
-      <Text style={{ color: '#e11d48', fontWeight: '700', marginTop: 6 }}>
+      <Text style={{ color: '#0A84FF', fontWeight: '800', marginTop: 6 }}>
         Open tracker →
       </Text>
     </Pressable>
