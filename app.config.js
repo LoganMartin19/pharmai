@@ -23,6 +23,7 @@ module.exports = {
   plugins: [
     'expo-dev-client',
     'expo-camera',
+    'expo-notifications',
     [
       'expo-splash-screen',
       {

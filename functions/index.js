@@ -122,6 +122,38 @@ function randId(len = 8) {
   return out;
 }
 
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+async function sendExpoPushNotifications(messages) {
+  if (!messages.length) return { sent: 0, tickets: [] };
+
+  const tickets = [];
+  for (const chunk of chunkArray(messages, 100)) {
+    const resp = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(chunk),
+    });
+
+    const json = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      console.error("Expo push send failed:", resp.status, json);
+      continue;
+    }
+    tickets.push(json);
+  }
+
+  return { sent: messages.length, tickets };
+}
+
 // POST /createInvite   (Auth: Bearer <ID_TOKEN>)
 exports.createInvite = onRequest((req, res) => {
   corsHandler(req, res, async () => {
@@ -303,9 +335,10 @@ exports.reportMissedDose = onRequest((req, res) => {
       const now = admin.firestore.FieldValue.serverTimestamp();
       const batch = db.batch();
       let notified = 0;
+      const pushMessages = [];
 
-      caregivers.forEach(({ caregiverUid, notifyCare }) => {
-        if (!notifyCare) return;
+      for (const { caregiverUid, notifyCare } of caregivers) {
+        if (!notifyCare) continue;
         const inboxRef = db
           .collection("users")
           .doc(caregiverUid)
@@ -324,11 +357,38 @@ exports.reportMissedDose = onRequest((req, res) => {
           doseDate,
           doseIndex: typeof doseIndex === "number" ? doseIndex : null,
         });
+
+        const tokenSnap = await db
+          .collection("users")
+          .doc(caregiverUid)
+          .collection("expoPushTokens")
+          .get();
+
+        tokenSnap.forEach((tokenDoc) => {
+          const token = tokenDoc.data()?.token;
+          if (typeof token !== "string" || !/^(ExponentPushToken|ExpoPushToken)\[/.test(token)) return;
+          pushMessages.push({
+            to: token,
+            sound: "default",
+            title: "Missed dose alert",
+            body: `${patientName || "Patient"} missed ${medName || "a dose"}`,
+            data: {
+              type: "missedDose",
+              patientUid,
+              medId,
+              medName: medName || null,
+              doseDate,
+              doseIndex: typeof doseIndex === "number" ? doseIndex : null,
+            },
+          });
+        });
+
         notified++;
-      });
+      }
 
       await batch.commit();
-      return res.json({ ok: true, notified });
+      const push = await sendExpoPushNotifications(pushMessages);
+      return res.json({ ok: true, notified, pushSent: push.sent });
     } catch (e) {
       console.error("reportMissedDose failed:", e);
       return res.status(500).json({ error: "report_failed" });

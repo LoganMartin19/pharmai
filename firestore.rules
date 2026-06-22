@@ -37,6 +37,9 @@ service cloud.firestore {
       match /fcmTokens/{tid} {
         allow read, write: if isOwner(uid);
       }
+      match /expoPushTokens/{tid} {
+        allow read, write: if isOwner(uid);
+      }
 
       // Caregiver inbox alerts are written by Cloud Functions with Admin SDK.
       // The signed-in caregiver can listen for and mark their own alerts delivered.
