@@ -59,6 +59,16 @@ service cloud.firestore {
         // Allow the patient app to clean up its own alerts if you add UI to dismiss
         allow update, delete: if isOwner(uid);
       }
+
+      match /chats/{chatId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+
+        match /messages/{messageId} {
+          allow read: if isOwner(uid);
+          allow write: if false;
+        }
+      }
     }
 
     // Care invites: any signed-in user can create/consume; no public reads

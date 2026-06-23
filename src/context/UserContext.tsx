@@ -8,6 +8,7 @@ type UserProfile = {
   uid: string;
   displayName?: string;
   email?: string;
+  gender?: 'female' | 'male' | 'prefer_not_to_say' | '';
 };
 
 type UserContextType = {
@@ -38,6 +39,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         uid,
         displayName: data.displayName || cachedName || '',
         email: data.email || '',
+        gender: data.gender || '',
       });
       if (data.displayName) {
         await AsyncStorage.setItem(`userName-${uid}`, data.displayName);
@@ -52,6 +54,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           uid: firebaseUser.uid,
           displayName: firebaseUser.displayName || '',
           email: firebaseUser.email || '',
+          gender: '',
         };
         setUser(profile);
         await loadProfile(firebaseUser.uid);

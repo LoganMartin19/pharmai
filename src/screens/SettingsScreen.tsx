@@ -11,21 +11,29 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import SafeLayout from '../components/SafeLayout';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { setFollowUpDelayMinutes, debugTestNotification } from '../utils/notifications';
+import { registerExpoPushToken } from '../utils/expoPush';
+import { useUser } from '../context/UserContext';
+
+type Gender = 'female' | 'male' | 'prefer_not_to_say' | '';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { refreshProfile } = useUser();
   const [userName, setUserName] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [gender, setGender] = useState<Gender>('');
 
   // Follow-up delay UI state
   const [delayValue, setDelayValue] = useState('60');
@@ -36,9 +44,9 @@ export default function SettingsScreen() {
   useEffect(() => {
     (async () => {
       const storedName = await AsyncStorage.getItem('userName');
-      const notifSetting = await AsyncStorage.getItem('notificationsEnabled');
       if (storedName) setUserName(storedName);
-      setNotificationsEnabled(notifSetting === 'true');
+      const permission = await Notifications.getPermissionsAsync();
+      setNotificationsEnabled(permission.status === 'granted');
     })();
   }, []);
 
@@ -57,6 +65,8 @@ export default function SettingsScreen() {
         const nested = data?.settings?.followUpDelayMinutes;
         const n = Number(root ?? nested ?? 60);
         setDelayValue(String(Number.isFinite(n) && n > 0 ? n : 60));
+        setGender((data?.gender ?? '') as Gender);
+        if (data?.displayName || data?.name) setUserName(data.displayName || data.name);
       } catch (e) {
         console.warn('Load followUpDelayMinutes failed', e);
         setDelayValue('60');
@@ -69,10 +79,32 @@ export default function SettingsScreen() {
 
   // ---- Handlers ----
   const toggleNotifications = async () => {
-    const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    await AsyncStorage.setItem('notificationsEnabled', String(newValue));
-    Alert.alert('Preferences saved', `Notifications turned ${newValue ? 'on' : 'off'}`);
+    if (!notificationsEnabled) {
+      const permission = await Notifications.requestPermissionsAsync();
+      const granted = permission.status === 'granted';
+      setNotificationsEnabled(granted);
+      if (granted) {
+        await registerExpoPushToken();
+        Alert.alert('Notifications on', 'Dose reminders and care alerts are enabled.');
+      } else {
+        Alert.alert('Notifications off', 'Enable notifications in iOS Settings to receive reminders.');
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Managed by iOS',
+      'Notifications are currently allowed. To turn them off completely, use iOS Settings for PharmAI.',
+    );
+    setNotificationsEnabled(true);
+  };
+
+  const saveGender = async (value: Gender) => {
+    const u = auth.currentUser;
+    if (!u) return;
+    setGender(value);
+    await setDoc(doc(db, 'users', u.uid), { gender: value }, { merge: true });
+    await refreshProfile();
   };
 
   const handleSaveDelay = async () => {
@@ -108,7 +140,7 @@ export default function SettingsScreen() {
   return (
     <SafeLayout>
       <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           {/* Account */}
           <Text style={styles.sectionTitle}>Account Details</Text>
           <Text style={styles.label}>Name</Text>
@@ -119,6 +151,24 @@ export default function SettingsScreen() {
 
           {/* Preferences */}
           <Text style={styles.sectionTitle}>Preferences</Text>
+          <Text style={styles.label}>Gender</Text>
+          <View style={styles.genderRow}>
+            {([
+              ['female', 'Woman'],
+              ['male', 'Man'],
+              ['prefer_not_to_say', 'Prefer not to say'],
+            ] as const).map(([value, label]) => (
+              <Pressable
+                key={value}
+                onPress={() => saveGender(value)}
+                style={[styles.genderPill, gender === value && styles.genderPillActive]}
+              >
+                <Text style={[styles.genderPillText, gender === value && styles.genderPillTextActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <View style={styles.prefRow}>
             <Text style={styles.label}>Notifications</Text>
             <Switch value={notificationsEnabled} onValueChange={toggleNotifications} />
@@ -168,10 +218,10 @@ export default function SettingsScreen() {
           {/* Care alerts */}
           <Text style={styles.sectionTitle}>Caregiver Alerts</Text>
           <Text style={[styles.label, { marginBottom: 8 }]}>
-            Caregiver alerts appear from your linked patient inbox while PharmAI is active.
+            Caregiver alerts use remote push notifications when a linked patient misses a dose.
           </Text>
           <Text style={{ color: '#6b7280', marginBottom: 16 }}>
-            Remote push delivery can be added later without blocking the current TestFlight build.
+            Keep notifications enabled on caregiver devices to receive missed-dose pings.
           </Text>
 
           {/* Pharmacy tools */}
@@ -190,14 +240,14 @@ export default function SettingsScreen() {
           </Pressable>
 
           <View style={styles.separator} />
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
+  container: { padding: 20, paddingBottom: 48 },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   label: { fontSize: 14, marginBottom: 4, color: '#555' },
   input: {
@@ -214,6 +264,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  genderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  genderPill: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  genderPillActive: { borderColor: '#0A84FF', backgroundColor: '#E8F0FF' },
+  genderPillText: { color: '#374151', fontWeight: '700' },
+  genderPillTextActive: { color: '#0A84FF' },
   delayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   bumpBtn: { paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8 },
   saveBtn: { paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginBottom: 16 },

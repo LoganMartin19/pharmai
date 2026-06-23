@@ -47,7 +47,8 @@ exports.chat = onRequest((req, res) => {
           "Explain dosing, timing, interactions, side effects and when to seek help. " +
           "NEVER diagnose or replace medical advice. " +
           "If an answer requires a professional, say so and suggest contacting a pharmacist/doctor or emergency services when appropriate. " +
-          "Use bullet points when helpful. Keep a reassuring, non-judgmental tone.",
+          "Use short plain-language sections and bullet points when helpful, but do not use markdown heading syntax like ### or bold markers. " +
+          "Keep a reassuring, non-judgmental tone.",
       };
 
       // 🧹 Keep only recent context

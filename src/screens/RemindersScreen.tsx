@@ -66,13 +66,12 @@ export default function RemindersScreen() {
 
   return (
     <SafeLayout>
-      <Text style={styles.title}>Your Reminders</Text>
-
       <FlatList
         data={reminders}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingTop: 6 }]}
+        ListHeaderComponent={<Text style={styles.title}>Your Reminders</Text>}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 30 }}>
             No reminders yet.

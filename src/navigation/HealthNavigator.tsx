@@ -4,6 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MenstrualTrackerScreen from '../screens/MenstrualTrackerScreen';
 import HealthIntegrationsScreen from '../screens/HealthIntegrationsScreen';
+import { useUser } from '../context/UserContext';
 
 export type HealthRoutes = {
   HealthHome: undefined;
@@ -48,6 +49,9 @@ function Row({
 }
 
 function HealthHomeScreen({ navigation }: any) {
+  const { user } = useUser();
+  const canAccessCycle = user?.gender === 'female';
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
@@ -61,12 +65,21 @@ function HealthHomeScreen({ navigation }: any) {
             paddingHorizontal: 14,
           }}
         >
-          <Row
-            emoji="🩸"
-            title="Menstrual cycle"
-            subtitle="Log periods, see predictions & next cycle"
-            onPress={() => navigation.navigate('Menstrual')}
-          />
+          {canAccessCycle ? (
+            <Row
+              emoji="🩸"
+              title="Cycle tracker"
+              subtitle="Log periods, ovulation, symptoms & predictions"
+              onPress={() => navigation.navigate('Menstrual')}
+            />
+          ) : (
+            <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderColor: '#eef2f7' }}>
+              <Text style={{ fontWeight: '700', fontSize: 16 }}>Cycle tracker</Text>
+              <Text style={{ color: '#667085', marginTop: 2 }}>
+                Available when Gender is set to Woman in Settings.
+              </Text>
+            </View>
+          )}
           <Row
             emoji="⌚️"
             title="Wearables"

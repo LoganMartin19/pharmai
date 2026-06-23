@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   Alert,
   Pressable,
@@ -46,6 +45,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Username / email"
+        placeholderTextColor="#6B7280"
         keyboardType="email-address"
         autoCapitalize="none"
         onChangeText={setEmail}
@@ -55,6 +55,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#6B7280"
         secureTextEntry
         onChangeText={setPassword}
         value={password}
@@ -64,7 +65,9 @@ export default function LoginScreen() {
         <Text style={styles.forgotText}>Forgot Password?</Text>
       </Pressable>
 
-      <Button title="Login" onPress={handleLogin} />
+      <Pressable style={styles.loginButton} onPress={handleLogin}>
+        <Text style={styles.loginButtonText}>Login</Text>
+      </Pressable>
     </View>
   );
 }
@@ -77,12 +80,23 @@ const styles = StyleSheet.create({
     fontSize: 24, marginBottom: 20, textAlign: 'center'
   },
   input: {
-    height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 12, paddingHorizontal: 10, borderRadius: 5
+    height: 48, borderColor: '#9CA3AF', borderWidth: 1, marginBottom: 12, paddingHorizontal: 12, borderRadius: 8, color: '#111827'
   },
   forgotText: {
     color: '#007bff',
     marginBottom: 20,
     textAlign: 'right',
     fontSize: 14,
+  },
+  loginButton: {
+    backgroundColor: '#0A84FF',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

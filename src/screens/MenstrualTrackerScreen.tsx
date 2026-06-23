@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import SafeLayout from '../components/SafeLayout';
 import CycleSummaryCard from '../components/CycleSummaryCard';
+import { useUser } from '../context/UserContext';
 
 type Flow = 'light' | 'medium' | 'heavy';
 type Symptom = 'cramps' | 'headache' | 'bloating' | 'mood' | 'fatigue' | 'tenderness';
@@ -77,6 +78,7 @@ function sortCycles(rows: Cycle[]) {
 
 export default function MenstrualTrackerScreen() {
   const navigation = useNavigation<any>();
+  const { user } = useUser();
 
   const [startDate, setStartDate] = useState(todayISO());
   const [heavyDate, setHeavyDate] = useState('');
@@ -209,9 +211,19 @@ export default function MenstrualTrackerScreen() {
   const nextStart = latestCycle ? addDays(latestCycle.startDate, avgCycle) : undefined;
   const today = todayISO();
   const daysToNext = nextStart ? daysBetween(today, nextStart) : undefined;
+  const ovulationDate = latestCycle ? addDays(latestCycle.startDate, Math.max(1, avgCycle - 14)) : undefined;
+  const fertileStart = ovulationDate ? addDays(ovulationDate, -5) : undefined;
+  const fertileEnd = ovulationDate ? addDays(ovulationDate, 1) : undefined;
+  const daysToOvulation = ovulationDate ? daysBetween(today, ovulationDate) : undefined;
   const currentDay = latestCycle ? daysBetween(latestCycle.startDate, today) + 1 : undefined;
   const currentPeriodActive =
     !!latestCycle && !!latestCycle.lastDate && today >= latestCycle.startDate && today <= latestCycle.lastDate;
+  const fertileStatus =
+    fertileStart && fertileEnd && today >= fertileStart && today <= fertileEnd
+      ? 'High'
+      : daysToOvulation !== undefined && daysToOvulation > 1 && daysToOvulation <= 7
+      ? 'Soon'
+      : 'Low';
 
   const goToWearables = () => {
     try {
@@ -220,6 +232,29 @@ export default function MenstrualTrackerScreen() {
       navigation.navigate('Wearables');
     }
   };
+
+  const goToSettings = () => {
+    const parent = navigation.getParent?.();
+    if (parent) parent.navigate('Settings');
+    else navigation.navigate('Settings');
+  };
+
+  if (user?.gender !== 'female') {
+    return (
+      <SafeLayout style={styles.safe}>
+        <View style={styles.lockedContent}>
+          <Text style={styles.eyebrow}>Health</Text>
+          <Text style={styles.title}>Cycle tracker</Text>
+          <Text style={styles.subtitle}>
+            Set Gender to Woman in Settings to use period, ovulation, and fertile-window tracking.
+          </Text>
+          <Pressable style={styles.primaryButton} onPress={goToSettings}>
+            <Text style={styles.primaryButtonText}>Open Settings</Text>
+          </Pressable>
+        </View>
+      </SafeLayout>
+    );
+  }
 
   return (
     <SafeLayout style={styles.safe}>
@@ -253,6 +288,29 @@ export default function MenstrualTrackerScreen() {
             <StatusTile label="Today" value={currentPeriodActive ? 'Period day' : 'Tracking'} detail={currentDay ? `Cycle day ${Math.max(1, currentDay)}` : 'No cycle yet'} />
             <StatusTile label="Next" value={daysToNext === undefined ? '-' : daysToNext <= 0 ? 'Due now' : `${daysToNext}d`} detail={nextStart ? friendlyDate(nextStart) : 'Add a log'} />
           </View>
+
+          {latestCycle && ovulationDate && fertileStart && fertileEnd ? (
+            <View style={styles.fertileCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fertileTitle}>Ovulation & fertile window</Text>
+                <Text style={styles.fertileMain}>
+                  {daysToOvulation === 0
+                    ? 'Ovulation predicted today'
+                    : daysToOvulation && daysToOvulation > 0
+                    ? `Ovulation in ${daysToOvulation} day${daysToOvulation === 1 ? '' : 's'}`
+                    : `Ovulation was around ${friendlyDate(ovulationDate)}`}
+                </Text>
+                <Text style={styles.fertileSub}>
+                  Fertile window: {friendlyDate(fertileStart)} - {friendlyDate(fertileEnd)}
+                </Text>
+              </View>
+              <View style={[styles.fertileBadge, fertileStatus === 'High' && styles.fertileBadgeHigh]}>
+                <Text style={[styles.fertileBadgeText, fertileStatus === 'High' && styles.fertileBadgeTextHigh]}>
+                  {fertileStatus}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.quickRow}>
             <Pressable style={styles.quickButton} onPress={() => setStartDate(todayISO())}>
@@ -345,7 +403,7 @@ export default function MenstrualTrackerScreen() {
           <View style={styles.metricsGrid}>
             <Metric label="Avg cycle" value={`${avgCycle}d`} />
             <Metric label="Avg period" value={`${avgPeriod}d`} />
-            <Metric label="Heavy day" value={`Day ${avgHeavyOffset + 1}`} />
+            <Metric label="Ovulation" value={daysToOvulation === undefined ? '-' : daysToOvulation <= 0 ? 'Now' : `${daysToOvulation}d`} />
           </View>
 
           <View style={styles.card}>
@@ -445,6 +503,7 @@ const styles = StyleSheet.create({
   safe: { paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 },
   flex: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 28, gap: 12 },
+  lockedContent: { flex: 1, paddingHorizontal: 16, paddingTop: 24, gap: 14 },
   header: { marginBottom: 2 },
   eyebrow: { color: '#0A84FF', fontWeight: '800', marginBottom: 4 },
   title: { color: '#111827', fontSize: 30, fontWeight: '900' },
@@ -471,6 +530,28 @@ const styles = StyleSheet.create({
   tileValue: { color: '#111827', fontWeight: '900', fontSize: 22 },
   tileDetail: { color: '#64748B', marginTop: 3 },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  fertileCard: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F9D5E5',
+    backgroundColor: '#FFF5FA',
+    borderRadius: 14,
+    padding: 14,
+  },
+  fertileTitle: { color: '#9F1239', fontWeight: '900', marginBottom: 4 },
+  fertileMain: { color: '#111827', fontWeight: '900', fontSize: 17 },
+  fertileSub: { color: '#64748B', marginTop: 3 },
+  fertileBadge: {
+    borderRadius: 999,
+    backgroundColor: '#FCE7F3',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  fertileBadgeHigh: { backgroundColor: '#FB7185' },
+  fertileBadgeText: { color: '#BE185D', fontWeight: '900' },
+  fertileBadgeTextHigh: { color: '#fff' },
   quickButton: {
     backgroundColor: '#EEF6FF',
     borderColor: '#CFE5FF',

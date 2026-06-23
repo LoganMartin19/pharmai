@@ -1,9 +1,7 @@
 import React from 'react';
-import { Text, Pressable } from 'react-native';
+import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -24,7 +22,6 @@ import CareLinkScreen from '../screens/CareLinkScreen';
 import CarePatientScreen from '../screens/CarePatientScreen';
 import AdherenceAnalyticsScreen from '../screens/AdherenceAnalyticsScreen';
 import HealthNavigator from './HealthNavigator';
-import HomeHealthHeader from '../components/HomeHealthHeader';
 import type { Medication } from '../types/Medication';
 import type { PillStyle } from '../types/PillStyle';
 import type { Pharmacy } from '../utils/pharmacySearch';
@@ -68,25 +65,6 @@ export type HomeTabParamList = {
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<HomeTabParamList>();
 
-/* -------------------- Header button that uses ROOT navigation -------------------- */
-function CareHeaderButton() {
-  const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  return (
-    <Pressable
-      onPress={() => rootNav.navigate('CareLink')}
-      style={{
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: '#E8F0FF',
-        borderRadius: 8,
-        marginRight: 8,
-      }}
-    >
-      <Text style={{ color: '#0A84FF', fontWeight: '700' }}>Care</Text>
-    </Pressable>
-  );
-}
-
 /* -------------------- Tabs -------------------- */
 function HomeTab() {
   return (
@@ -113,11 +91,6 @@ function HomeTab() {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{
-          headerShown: true,          // show header only on Home tab
-          headerTitle: 'Home',
-          headerRight: () => <CareHeaderButton />, // uses ROOT stack to navigate
-        }}
       />
       <Tab.Screen name="Reminders" component={RemindersScreen} />
       <Tab.Screen name="Refills" component={RefillScreen} />

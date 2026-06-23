@@ -297,53 +297,72 @@ export default function HomeScreen() {
     ]);
   };
 
+  const Header = () => (
+    <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greeting}>
+            {`Hi ${user?.displayName ? user.displayName + ' ' : ''}👋`}
+          </Text>
+          <Text style={styles.subtitle}>Your Medications Today</Text>
+        </View>
+        <Pressable
+          onPress={() => stackNav.navigate('CareLink')}
+          style={{
+            paddingHorizontal: 14,
+            paddingVertical: 9,
+            backgroundColor: '#E8F0FF',
+            borderRadius: 10,
+          }}
+        >
+          <Text style={{ color: '#0A84FF', fontWeight: '800' }}>Care</Text>
+        </Pressable>
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        {(['me', 'care'] as const).map((val) => (
+          <Pressable
+            key={val}
+            onPress={() => setMode(val)}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 14,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: mode === val ? '#0A84FF' : '#e5e7eb',
+              backgroundColor: mode === val ? '#E8F0FF' : '#fff',
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: '600',
+                color: mode === val ? '#0A84FF' : '#111',
+              }}
+            >
+              {val === 'me' ? 'Me' : 'Care'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+
   // ---------------- RENDER ----------------
   return (
     <SafeLayout>
-      {/* Greeting + segmented toggle */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 }}>
-        <Text style={styles.greeting}>
-          {`Hi ${user?.displayName ? user.displayName + ' ' : ''}👋`}
-        </Text>
-        <Text style={styles.subtitle}>Your Medications Today</Text>
-
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-          {(['me', 'care'] as const).map((val) => (
-            <Pressable
-              key={val}
-              onPress={() => setMode(val)}
-              style={{
-                paddingVertical: 8,
-                paddingHorizontal: 14,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: mode === val ? '#0A84FF' : '#e5e7eb',
-                backgroundColor: mode === val ? '#E8F0FF' : '#fff',
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: '600',
-                  color: mode === val ? '#0A84FF' : '#111',
-                }}
-              >
-                {val === 'me' ? 'Me' : 'Care'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
       {mode === 'me' ? (
         <>
-          {/* Menstrual tracker preview (tap to open Health tab) */}
-          <HomeHealthHeader onOpen={() => tabNav.navigate('Health')} />
-
           <FlatList
             data={combinedMeds}
             keyExtractor={(item) => item.id}
             renderItem={renderMeCard}
-            contentContainerStyle={styles.list}
+            ListHeaderComponent={
+              <>
+                <Header />
+                <HomeHealthHeader onOpen={() => tabNav.navigate('Health')} />
+              </>
+            }
+            contentContainerStyle={[styles.list, { paddingTop: 0 }]}
             showsVerticalScrollIndicator={false}
           />
           <Pressable
@@ -358,25 +377,33 @@ export default function HomeScreen() {
           </Pressable>
         </>
       ) : loadingCare ? (
-        <ActivityIndicator style={{ marginTop: 20 }} />
+        <>
+          <Header />
+          <ActivityIndicator style={{ marginTop: 20 }} />
+        </>
       ) : links.length === 0 ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Header />
+          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
           <Text style={{ color: '#666' }}>
             No linked patients yet. Ask them to share an invite code from
             Settings → Care.
           </Text>
+          </View>
         </View>
       ) : (
         <FlatList
           data={careRows}
           keyExtractor={(r) => r.link.patientUid}
+          ListHeaderComponent={<Header />}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
+          contentContainerStyle={{ paddingBottom: 24, gap: 12 }}
           renderItem={({ item }) => (
             <View
               style={{
+                marginHorizontal: 16,
                 borderWidth: 1,
                 borderColor: '#e5e7eb',
                 borderRadius: 14,

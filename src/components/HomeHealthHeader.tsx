@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUser } from '../context/UserContext';
 
 const STORAGE_KEY = 'menstrual:cycles';
 
@@ -18,6 +19,7 @@ function addDays(s: string, n: number) {
 }
 
 export default function HomeHealthHeader({ onOpen }: { onOpen?: () => void }) {
+  const { user } = useUser();
   const [cycles, setCycles] = useState<Cycle[]>([]);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function HomeHealthHeader({ onOpen }: { onOpen?: () => void }) {
     return { nextStart, daysToNext, cycleDay };
   }, [cycles]);
 
-  if (!summary) return null;
+  if (user?.gender !== 'female' || !summary) return null;
 
   const handleOpen = () => {
     // Let parent decide how to navigate (simplest: navigation.navigate('Health'))
