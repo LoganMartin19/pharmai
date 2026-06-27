@@ -67,12 +67,7 @@ export default function HomeScreen() {
             h.date === today ? { ...h, taken: updatedTaken } : h
           );
         } else {
-          const numDoses =
-            med.frequency === 'Twice daily'
-              ? 2
-              : med.frequency === 'Three times daily'
-              ? 3
-              : 1;
+          const numDoses = doseCount(med.frequency);
           const newTaken = Array(numDoses).fill(false);
           newTaken[doseIndex] = true;
           newHistory = [...med.history, { date: today, taken: newTaken }];

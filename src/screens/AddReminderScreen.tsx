@@ -21,10 +21,78 @@ import type { PillStyle } from '../types/PillStyle';
 import PillBadge from '../components/PillBadge';
 import PillLookPicker from '../components/PillLookPicker';
 import { RootStackParamList } from '../navigation/MainNavigator';
+import { doseCount } from '../utils/doseSchedule';
 
-type Freq = 'Once daily' | 'Twice daily' | 'Three times daily';
 type R = RouteProp<RootStackParamList, 'AddReminder'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AddReminder'>;
+
+const MEDICATION_SUGGESTIONS = [
+  'Amlodipine',
+  'Amoxicillin',
+  'Aspirin',
+  'Atorvastatin',
+  'Azithromycin',
+  'Bisoprolol',
+  'Cetirizine',
+  'Clarithromycin',
+  'Co-codamol',
+  'Codeine',
+  'Doxycycline',
+  'Flucloxacillin',
+  'Fluconazole',
+  'Fluoxetine',
+  'Folic acid',
+  'Furosemide',
+  'Gabapentin',
+  'Ibuprofen',
+  'Lansoprazole',
+  'Levothyroxine',
+  'Lisinopril',
+  'Metformin',
+  'Naproxen',
+  'Omeprazole',
+  'Paracetamol',
+  'Penicillin V',
+  'Prednisolone',
+  'Ramipril',
+  'Salbutamol',
+  'Sertraline',
+  'Simvastatin',
+  'Warfarin',
+];
+
+function shapeDoseUnit(shape: PillStyle['shape']) {
+  if (shape === 'capsule') return 'capsule';
+  if (shape === 'round' || shape === 'oval' || shape === 'rectangle') return `${shape} tablet`;
+  return 'tablet';
+}
+
+function pluralizeDoseUnit(unit: string, count: number) {
+  if (count === 1) return unit;
+  return unit.endsWith('s') ? unit : `${unit}s`;
+}
+
+function doseLabelForShape(shape: PillStyle['shape'], count: number) {
+  const unit = shapeDoseUnit(shape);
+  return `${count} ${pluralizeDoseUnit(unit, count)}`;
+}
+
+function doseCountFromLabel(dosage: string) {
+  const match = dosage.match(/^(\d+)\s+/);
+  return match ? Number(match[1]) : undefined;
+}
+
+function isShapeBasedDosage(dosage: string) {
+  return /^(1|2)\s+(?:capsules?|tablets?|round tablets?|oval tablets?|rectangle tablets?)$/i.test(dosage);
+}
+
+function frequencyLabel(count: number) {
+  if (count <= 1) return 'Once daily';
+  if (count === 2) return 'Twice daily';
+  if (count === 3) return 'Three times daily';
+  if (count === 4) return 'Four times daily';
+  return `${count} times daily`;
+}
 
 function parseFirstTimeFromPrefill(time?: string | string[]) {
   if (!time) return undefined;
@@ -54,22 +122,28 @@ export default function AddReminderScreen() {
 
   // If we navigated here from Scan to PREFILL fields
   const prefill = route.params?.prefill ?? {};
+  const initialPillStyle = original?.pillStyle ?? (prefill.pillStyle ?? { shape: 'capsule', color: '#2F80ED' });
 
   // -------- Initial state (edit has priority, then prefill) --------
   const [medicationName, setMedicationName] = useState(
     original?.name ?? (prefill.name ?? '')
   );
-  const [selectedDosage, setSelectedDosage] = useState(
-    original?.dosage ?? (prefill.dosage ?? '1 tablet')
-  );
-  const [selectedFrequency, setSelectedFrequency] = useState<Freq>(
-    (original?.frequency as Freq) ??
-      ((prefill.frequency as Freq) ?? 'Once daily')
+  const [showMedicationSuggestions, setShowMedicationSuggestions] = useState(false);
+  const [selectedDosage, setSelectedDosage] = useState(() => {
+    const dosage = original?.dosage ?? prefill.dosage ?? doseLabelForShape(initialPillStyle.shape, 1);
+    return /^\d+(?:\.\d+)?\s*ml$/i.test(String(dosage)) ? 'Liquid ml' : dosage;
+  });
+  const [mlAmount, setMlAmount] = useState(() => {
+    const dosage = original?.dosage ?? prefill.dosage ?? '';
+    const match = String(dosage).match(/^(\d+(?:\.\d+)?)\s*ml$/i);
+    return match?.[1] ?? '';
+  });
+  const [dailyDoseCount, setDailyDoseCount] = useState(() =>
+    doseCount(original?.frequency ?? prefill.frequency ?? 'Once daily')
   );
   const [hoursApart, setHoursApart] = useState(() => {
-    const frequency = (original?.frequency as Freq) ?? ((prefill.frequency as Freq) ?? 'Once daily');
-    if (frequency === 'Three times daily') return '8';
-    if (frequency === 'Twice daily') return '12';
+    const count = doseCount(original?.frequency ?? prefill.frequency ?? 'Once daily');
+    if (count > 1) return String(Math.max(1, Math.round(24 / count)));
     return '4';
   });
 
@@ -98,8 +172,28 @@ export default function AddReminderScreen() {
   );
 
   const [pillStyle, setPillStyle] = useState<PillStyle>(
-    original?.pillStyle ?? (prefill.pillStyle ?? { shape: 'capsule', color: '#2F80ED' })
+    initialPillStyle
   );
+
+  const medicationSuggestions = useMemo(() => {
+    const query = medicationName.trim().toLowerCase();
+    if (query.length < 2) return [];
+    return MEDICATION_SUGGESTIONS
+      .filter((name) => name.toLowerCase().startsWith(query))
+      .slice(0, 6);
+  }, [medicationName]);
+
+  const selectedFrequency = frequencyLabel(dailyDoseCount);
+  const shapeDosageOptions = useMemo(
+    () => [doseLabelForShape(pillStyle.shape, 1), doseLabelForShape(pillStyle.shape, 2)],
+    [pillStyle.shape]
+  );
+  const dosageForSave =
+    selectedDosage === 'Liquid ml'
+      ? mlAmount.trim()
+        ? `${mlAmount.trim()}ml`
+        : ''
+      : selectedDosage;
 
   // pickers
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -117,12 +211,7 @@ export default function AddReminderScreen() {
     d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
 
   const generateDoseTimes = (): string[] => {
-    const count =
-      selectedFrequency === 'Twice daily'
-        ? 2
-        : selectedFrequency === 'Three times daily'
-        ? 3
-        : 1;
+    const count = Math.max(1, dailyDoseCount);
 
     const interval = parseInt(hoursApart || '0', 10);
     const base = new Date(startTime);
@@ -140,17 +229,21 @@ export default function AddReminderScreen() {
       Alert.alert('Missing Info', 'Please enter a medication name');
       return;
     }
+    if (!dosageForSave) {
+      Alert.alert('Missing Info', 'Please enter the dosage');
+      return;
+    }
 
     const times = generateDoseTimes();
 
     const payload: Medication = {
       id: editing ? original!.id : Date.now().toString(),   // keep the same id when editing
       name: medicationName.trim(),
-      dosage: selectedDosage,
+      dosage: dosageForSave,
       frequency: selectedFrequency,
       time: times.join(', '),
       times,
-      instructions: `Take ${selectedDosage}, ${selectedFrequency.toLowerCase()}`,
+      instructions: `Take ${dosageForSave}, ${selectedFrequency.toLowerCase()}`,
       repeatPrescription,
       startDate:
         editing
@@ -183,20 +276,40 @@ export default function AddReminderScreen() {
   // -------- UI --------
   return (
     <SafeLayout>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{editing ? 'Edit Reminder' : 'Add Reminder'}</Text>
 
         <Text style={styles.label}>Medication Name</Text>
         <TextInput
           placeholder="e.g. Paracetamol"
           value={medicationName}
-          onChangeText={setMedicationName}
+          onFocus={() => setShowMedicationSuggestions(true)}
+          onChangeText={(value) => {
+            setMedicationName(value);
+            setShowMedicationSuggestions(true);
+          }}
           style={styles.input}
         />
+        {showMedicationSuggestions && medicationSuggestions.length > 0 && (
+          <View style={styles.suggestionsBox}>
+            {medicationSuggestions.map((name) => (
+              <Pressable
+                key={name}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setMedicationName(name);
+                  setShowMedicationSuggestions(false);
+                }}
+              >
+                <Text style={styles.suggestionText}>{name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.label}>Dosage</Text>
         <View style={styles.optionsRow}>
-          {['1 tablet', '2 tablets', '5ml', '10ml'].map((dosage) => (
+          {[...shapeDosageOptions, 'Liquid ml'].map((dosage) => (
             <Pressable
               key={dosage}
               style={[styles.optionButton, selectedDosage === dosage && styles.optionButtonSelected]}
@@ -208,23 +321,53 @@ export default function AddReminderScreen() {
             </Pressable>
           ))}
         </View>
+        {selectedDosage === 'Liquid ml' && (
+          <TextInput
+            placeholder="e.g. 1.25"
+            keyboardType="decimal-pad"
+            value={mlAmount}
+            onChangeText={(value) => setMlAmount(value.replace(/[^0-9.]/g, ''))}
+            style={styles.input}
+          />
+        )}
 
         <Text style={styles.label}>Frequency</Text>
         <View style={styles.optionsRow}>
-          {(['Once daily', 'Twice daily', 'Three times daily'] as const).map((freq) => (
-            <Pressable
-              key={freq}
-              style={[styles.optionButton, selectedFrequency === freq && styles.optionButtonSelected]}
-              onPress={() => setSelectedFrequency(freq)}
-            >
-              <Text style={[styles.optionButtonText, selectedFrequency === freq && styles.optionButtonTextSelected]}>
-                {freq}
-              </Text>
-            </Pressable>
-          ))}
+          {[1, 2, 3, 4].map((count) => {
+            const freq = frequencyLabel(count);
+            return (
+              <Pressable
+                key={freq}
+                style={[styles.optionButton, dailyDoseCount === count && styles.optionButtonSelected]}
+                onPress={() => {
+                  setDailyDoseCount(count);
+                  if (count > 1) setHoursApart(String(Math.max(1, Math.round(24 / count))));
+                }}
+              >
+                <Text style={[styles.optionButtonText, dailyDoseCount === count && styles.optionButtonTextSelected]}>
+                  {freq}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        {(selectedFrequency === 'Twice daily' || selectedFrequency === 'Three times daily') && (
+        <Text style={styles.label}>Daily Doses</Text>
+        <TextInput
+          placeholder="e.g. 6"
+          keyboardType="number-pad"
+          value={String(dailyDoseCount)}
+          onChangeText={(value) => {
+            const parsed = Number(value.replace(/[^0-9]/g, ''));
+            setDailyDoseCount(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
+            if (Number.isFinite(parsed) && parsed > 1) {
+              setHoursApart(String(Math.max(1, Math.round(24 / parsed))));
+            }
+          }}
+          style={styles.input}
+        />
+
+        {dailyDoseCount > 1 && (
           <>
             <Text style={styles.label}>Hours Between Doses</Text>
             <TextInput
@@ -303,6 +446,9 @@ export default function AddReminderScreen() {
         initial={pillStyle}
         onCancel={() => setLookPickerVisible(false)}
         onDone={(style) => {
+          if (isShapeBasedDosage(selectedDosage)) {
+            setSelectedDosage(doseLabelForShape(style.shape, doseCountFromLabel(selectedDosage) ?? 1));
+          }
           setPillStyle(style);
           setLookPickerVisible(false);
         }}

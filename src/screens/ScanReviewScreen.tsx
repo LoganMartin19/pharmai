@@ -7,9 +7,9 @@ import type { RootStackParamList } from '../navigation/MainNavigator';
 
 type Route = RouteProp<RootStackParamList, 'ScanReview'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ScanReview'>;
-type Frequency = 'Once daily' | 'Twice daily' | 'Three times daily';
+type Frequency = 'Once daily' | 'Twice daily' | 'Three times daily' | 'Four times daily';
 
-const FREQUENCIES: Frequency[] = ['Once daily', 'Twice daily', 'Three times daily'];
+const FREQUENCIES: Frequency[] = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily'];
 
 export default function ScanReviewScreen() {
   const route = useRoute<Route>();

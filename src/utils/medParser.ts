@@ -2,7 +2,7 @@
 type Parsed = {
     name?: string;
     dosage?: string;          // e.g. "500 mg" or "1 tablet"
-    frequency?: 'Once daily' | 'Twice daily' | 'Three times daily';
+    frequency?: string;
     everyHours?: number;      // e.g. 8 (if text says "every 8 hours")
   };
   
@@ -71,6 +71,9 @@ type Parsed = {
     if (/\b(?:3|three)\s*x\s*(?:a|per)?\s*day\b|\b(?:3|three)\s*(?:times\s+)?(?:(?:a|per)\s+day|daily)\b/.test(t)) {
       return { frequency: 'Three times daily' };
     }
+    if (/\b(?:4|four)\s*x\s*(?:a|per)?\s*day\b|\b(?:4|four)\s*(?:times\s+)?(?:(?:a|per)\s+day|daily)\b/.test(t)) {
+      return { frequency: 'Four times daily' };
+    }
     if (/\b(?:1|one)\s*x\s*(?:a|per)?\s*day\b|\bonce(?:\s+(?:a|per))?\s+day\b|\bonce\s+daily\b|\bdaily\b/.test(t)) {
       return { frequency: 'Once daily' };
     }
@@ -79,6 +82,7 @@ type Parsed = {
     if (/\bod\b/.test(t)) return { frequency: 'Once daily' };  // omni die
     if (/\bbid\b/.test(t)) return { frequency: 'Twice daily' };
     if (/\btid\b|\btds\b/.test(t)) return { frequency: 'Three times daily' };
+    if (/\bqid\b|\bqds\b/.test(t)) return { frequency: 'Four times daily' };
   
     // every N hours
     const every = t.match(/\bevery\s+(\d+|\w+)\s+hours?\b/);
@@ -86,6 +90,7 @@ type Parsed = {
       const raw = every[1];
       const num = WORD_NUM[raw] ?? (parseInt(raw || '0', 10) || undefined);
       if (num && num > 0) {
+        if (num === 6) return { frequency: 'Four times daily', everyHours: num };
         if (num === 8) return { frequency: 'Three times daily', everyHours: num };
         if (num === 12) return { frequency: 'Twice daily', everyHours: num };
         if (num >= 24) return { frequency: 'Once daily', everyHours: num };

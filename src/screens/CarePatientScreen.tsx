@@ -17,7 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { Medication } from '../types/Medication';
 import { auth, db } from '../firebase';
-import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
 import SafeLayout from '../components/SafeLayout';
 import styles from './styles/HomeScreen.styles';
 import { doseCount, doseIcon, doseLabel, medicationTimes } from '../utils/doseSchedule';
@@ -57,7 +57,15 @@ export default function CarePatientScreen() {
   const [tab, setTab] = useState<'overview' | 'analytics'>('overview');
 
   useEffect(() => {
-    navigation.setOptions({ title: displayName || 'Patient' });
+    navigation.setOptions({
+      title: displayName || 'Patient',
+      headerBackTitle: 'Back',
+      headerLeft: () => (
+        <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={local.headerBack}>
+          <Text style={local.headerBackText}>‹ Back</Text>
+        </Pressable>
+      ),
+    });
 
     const load = async () => {
       setLoading(true);
@@ -99,15 +107,31 @@ export default function CarePatientScreen() {
         return;
       }
       const minutes = Math.max(1, Math.min(720, Math.floor(Number(notifyDelay) || 60)));
-      await setDoc(
+      const batch = writeBatch(db);
+
+      // Caregiver-owned copy keeps this screen's settings visible to the caregiver.
+      batch.set(
         doc(db, 'users', u.uid, 'careLinks', patientUid),
         {
-          role: 'patient',              // keep the role so the doc stays consistent
+          role: 'patient',
           notifyCare: notifyOn,
           notifyDelayMinutes: minutes,
         },
         { merge: true }
       );
+
+      // Patient-owned copy is what reportMissedDose reads when deciding who to alert.
+      batch.set(
+        doc(db, 'users', patientUid, 'careLinks', u.uid),
+        {
+          role: 'caregiver',
+          notifyCare: notifyOn,
+          notifyDelayMinutes: minutes,
+        },
+        { merge: true }
+      );
+
+      await batch.commit();
       setNotifyDelay(String(minutes));
       Alert.alert('Saved', `You’ll be notified after ${minutes} min${minutes === 1 ? '' : 's'} if doses are missed.`);
     } catch (e) {
@@ -257,84 +281,87 @@ export default function CarePatientScreen() {
     };
   }, [meds]);
 
+  const renderCareHeader = () => (
+    <View style={local.headerContent}>
+      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>
+        {displayName || 'Patient'}
+      </Text>
+
+      <View style={local.digestCard}>
+        <Text style={local.digestTitle}>Weekly digest</Text>
+        <Text style={local.digestMain}>
+          {weeklyDigest.total ? `${weeklyDigest.adherence}% adherence` : 'No dose history yet'}
+        </Text>
+        <Text style={local.digestSub}>
+          {weeklyDigest.total
+            ? `${weeklyDigest.taken}/${weeklyDigest.total} doses taken, ${weeklyDigest.missed} missed`
+            : 'When they start marking doses, the last 7 days will appear here.'}
+        </Text>
+        {weeklyDigest.mostMissedName ? (
+          <Text style={local.digestSub}>
+            Most missed: {weeklyDigest.mostMissedName} ({weeklyDigest.mostMissedCount})
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={local.tabRow}>
+        {(['overview', 'analytics'] as const).map(k => (
+          <Pressable
+            key={k}
+            onPress={() => setTab(k)}
+            style={[local.tabPill, tab === k && local.tabActive]}
+          >
+            <Text style={[local.tabText, tab === k && local.tabTextActive]}>
+              {k === 'overview' ? 'Overview' : 'Analytics'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={local.notifyRow}>
+        <Text style={local.notifyLabel}>Notify me if this patient misses a dose</Text>
+        <Switch value={notifyOn} onValueChange={setNotifyOn} />
+      </View>
+
+      <View style={local.delayRow}>
+        <Text>Delay (min):</Text>
+        <TextInput
+          value={notifyDelay}
+          onChangeText={setNotifyDelay}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          style={local.delayInput}
+          placeholder="60"
+        />
+        <Pressable onPress={saveCareNotifyPrefs} style={local.saveButton}>
+          <Text style={local.saveButtonText}>Save</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
   /* --------------------------- RENDER --------------------------- */
 
   return (
-    <SafeLayout>
-      {/* Caregiver notify controls */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>
-          {displayName || 'Patient'}
-        </Text>
-
-        <View style={local.digestCard}>
-          <Text style={local.digestTitle}>Weekly digest</Text>
-          <Text style={local.digestMain}>
-            {weeklyDigest.total ? `${weeklyDigest.adherence}% adherence` : 'No dose history yet'}
-          </Text>
-          <Text style={local.digestSub}>
-            {weeklyDigest.total
-              ? `${weeklyDigest.taken}/${weeklyDigest.total} doses taken, ${weeklyDigest.missed} missed`
-              : 'When they start marking doses, the last 7 days will appear here.'}
-          </Text>
-          {weeklyDigest.mostMissedName ? (
-            <Text style={local.digestSub}>
-              Most missed: {weeklyDigest.mostMissedName} ({weeklyDigest.mostMissedCount})
-            </Text>
-          ) : null}
-        </View>
-
-        {/* tabs */}
-        <View style={local.tabRow}>
-          {(['overview', 'analytics'] as const).map(k => (
-            <Pressable
-              key={k}
-              onPress={() => setTab(k)}
-              style={[local.tabPill, tab === k && local.tabActive]}
-            >
-              <Text style={[local.tabText, tab === k && local.tabTextActive]}>
-                {k === 'overview' ? 'Overview' : 'Analytics'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-          <Text style={{ fontWeight: '600' }}>Notify me if this patient misses a dose</Text>
-          <Switch value={notifyOn} onValueChange={setNotifyOn} />
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-          <Text>Delay (min):</Text>
-          <TextInput
-            value={notifyDelay}
-            onChangeText={setNotifyDelay}
-            keyboardType="number-pad"
-            inputMode="numeric"
-            style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, minWidth: 80 }}
-            placeholder="60"
-          />
-          <Pressable
-            onPress={saveCareNotifyPrefs}
-            style={{ marginLeft: 'auto', backgroundColor: '#0A84FF', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Save</Text>
-          </Pressable>
-        </View>
-      </View>
-
+    <SafeLayout style={local.safeContent}>
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 20 }} />
+        <ScrollView contentContainerStyle={local.scrollContent}>
+          {renderCareHeader()}
+          <ActivityIndicator style={{ marginTop: 20 }} />
+        </ScrollView>
       ) : tab === 'overview' ? (
         <FlatList
           data={meds}
           keyExtractor={(item) => item.id}
           renderItem={renderCard}
-          contentContainerStyle={styles.list}
+          ListHeaderComponent={renderCareHeader}
+          contentContainerStyle={[styles.list, local.scrollContent]}
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+        <ScrollView contentContainerStyle={local.scrollContent}>
+          {renderCareHeader()}
+
           {/* Window selector */}
           <View style={local.row}>
             {(['7', '30', 'all'] as const).map(key => (
@@ -431,6 +458,63 @@ export default function CarePatientScreen() {
 }
 
 const local = StyleSheet.create({
+  safeContent: {
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 30,
+  },
+  headerContent: {
+    paddingBottom: 12,
+  },
+  headerBack: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  headerBackText: {
+    color: '#0A84FF',
+    fontSize: 17,
+  },
+  notifyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
+  },
+  notifyLabel: {
+    flex: 1,
+    fontWeight: '600',
+  },
+  delayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  delayInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 80,
+  },
+  saveButton: {
+    marginLeft: 'auto',
+    backgroundColor: '#0A84FF',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
   // tabs
   tabRow: { flexDirection: 'row', gap: 8 },
   tabPill: {

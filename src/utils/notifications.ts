@@ -2,8 +2,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Medication } from '../types/Medication';
 import { auth, db } from '../firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import { pingCaregivers } from './careAlerts'; // ✅ use the new util
+import { doseCount } from './doseSchedule';
 
 type NotifeeModule = typeof import('@notifee/react-native').default;
 type NotifeePackage = typeof import('@notifee/react-native');
@@ -135,6 +145,10 @@ function todayISO() {
   return new Date().toISOString().split('T')[0];
 }
 
+function doseDateISO(date: Date) {
+  return date.toISOString().split('T')[0];
+}
+
 /* ---------------- Notification ID helpers ---------------- */
 
 async function saveIds(reminderId: string, ids: string[]) {
@@ -152,14 +166,54 @@ async function clearIds(reminderId: string) {
   await AsyncStorage.removeItem(IDS_KEY(reminderId));
 }
 
+async function deleteServerCareAlerts(reminderId: string) {
+  const u = auth.currentUser;
+  if (!u) return;
+
+  const snap = await getDocs(collection(db, 'users', u.uid, 'carePendingAlerts'));
+  await Promise.all(
+    snap.docs
+      .filter((alertDoc) => alertDoc.data()?.medId === reminderId)
+      .map((alertDoc) => deleteDoc(alertDoc.ref))
+  );
+}
+
+async function scheduleServerCareAlerts(med: Medication, doseDates: Date[]) {
+  const u = auth.currentUser;
+  if (!u || !doseDates.length) return;
+
+  await deleteServerCareAlerts(med.id);
+
+  const delayMin = await getFollowUpDelayMinutes();
+  await Promise.all(
+    doseDates.map((doseDate, doseIndex) => {
+      const dueAt = new Date(doseDate.getTime() + delayMin * 60 * 1000);
+      return setDoc(
+        doc(db, 'users', u.uid, 'carePendingAlerts', `${med.id}_${doseIndex}`),
+        {
+          medId: med.id,
+          medName: med.name,
+          doseIndex,
+          doseTime: doseDate.toTimeString().slice(0, 5),
+          doseDate: doseDateISO(doseDate),
+          dueAt: Timestamp.fromDate(dueAt),
+          delayMinutes: delayMin,
+          processed: false,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
+    })
+  );
+}
+
 async function markDoseTaken(med: Medication, doseIndex: number) {
   const u = auth.currentUser;
   if (!u) return;
 
   const today = todayISO();
-  const freq =
-    med.frequency === 'Twice daily' ? 2 :
-    med.frequency === 'Three times daily' ? 3 : 1;
+  const freq = doseCount(med.frequency);
   const history = med.history ?? [];
   const existing = history.find((h) => h.date === today);
 
@@ -187,6 +241,17 @@ async function getFollowUpDelayMinutes(): Promise<number> {
   const u = auth.currentUser;
   if (!u) return 60;
   try {
+    const linksSnap = await getDocs(collection(db, 'users', u.uid, 'careLinks'));
+    const caregiverDelays = linksSnap.docs
+      .map((linkDoc) => linkDoc.data() as any)
+      .filter((link) => link?.role === 'caregiver' && link?.notifyCare !== false)
+      .map((link) => Number(link?.notifyDelayMinutes))
+      .filter((minutes) => Number.isFinite(minutes) && minutes > 0);
+
+    if (caregiverDelays.length) {
+      return Math.max(1, Math.min(720, Math.floor(Math.min(...caregiverDelays))));
+    }
+
     const snap = await getDoc(doc(db, 'users', u.uid));
     const data = snap.exists() ? (snap.data() as any) : null;
     // Support both root field and nested under settings
@@ -255,6 +320,10 @@ export async function scheduleReminderNotifications(med: Medication): Promise<st
   const refillIds = await scheduleRefillNotifications(med);
   const ids = [...mainIds, ...refillIds];
   await saveIds(med.id, ids);
+  await scheduleServerCareAlerts(
+    med,
+    triggers.map((trigger) => new Date(trigger.timestamp))
+  );
   return ids;
 }
 
@@ -302,12 +371,12 @@ async function scheduleRefillNotifications(med: Medication): Promise<string[]> {
 
 export async function cancelReminderNotifications(reminderId: string) {
   const notifee = getNotifee();
-  if (!notifee) return;
   const ids = await loadIds(reminderId);
-  if (ids.length) {
+  if (notifee && ids.length) {
     await notifee.cancelTriggerNotifications(ids);
   }
   await clearIds(reminderId);
+  await deleteServerCareAlerts(reminderId);
 }
 
 /* ---------------- Smart follow-up handler (foreground + background) ---------------- */

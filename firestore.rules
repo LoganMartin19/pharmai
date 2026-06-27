@@ -33,6 +33,11 @@ service cloud.firestore {
       // Care links & tokens managed by the owner only
       match /careLinks/{cid} {
         allow read, write: if isOwner(uid);
+        allow update: if isSignedIn()
+          && request.auth.uid == cid
+          && isCaregiverFor(uid)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['notifyCare', 'notifyDelayMinutes']);
       }
       match /fcmTokens/{tid} {
         allow read, write: if isOwner(uid);

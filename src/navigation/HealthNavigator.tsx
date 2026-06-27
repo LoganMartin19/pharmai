@@ -67,7 +67,7 @@ function HealthHomeScreen({ navigation }: any) {
         >
           {canAccessCycle ? (
             <Row
-              emoji="🩸"
+              emoji="◌"
               title="Cycle tracker"
               subtitle="Log periods, ovulation, symptoms & predictions"
               onPress={() => navigation.navigate('Menstrual')}

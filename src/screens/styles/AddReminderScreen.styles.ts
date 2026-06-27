@@ -22,6 +22,25 @@ export default StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  suggestionsBox: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  suggestionText: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '500',
+  },
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

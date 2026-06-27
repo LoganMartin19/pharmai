@@ -18,7 +18,7 @@ export type Medication = {
    */
   times?: string[];
 
-  frequency?: 'Once daily' | 'Twice daily' | 'Three times daily';
+  frequency?: string;
   instructions?: string;
   taken?: boolean;
   repeatPrescription?: boolean;

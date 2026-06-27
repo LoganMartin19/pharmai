@@ -14,7 +14,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import SafeLayout from '../components/SafeLayout';
-import CycleSummaryCard from '../components/CycleSummaryCard';
 import { useUser } from '../context/UserContext';
 
 type Flow = 'light' | 'medium' | 'heavy';
@@ -44,6 +43,13 @@ const SYMPTOMS: Array<{ value: Symptom; label: string }> = [
   { value: 'fatigue', label: 'Fatigue' },
   { value: 'tenderness', label: 'Tenderness' },
 ];
+const TRACK_CATEGORIES = [
+  { title: 'Period flow', detail: 'Start, end, and intensity', color: '#E63946', marker: '•' },
+  { title: 'My feelings', detail: 'Mood and energy changes', color: '#F77F00', marker: '☺' },
+  { title: 'Cramps and pain', detail: 'Pain, headache, bloating', color: '#4676C7', marker: '↯' },
+  { title: 'Fertile window', detail: 'Ovulation prediction', color: '#0096A6', marker: '◌' },
+  { title: 'PMS', detail: 'Patterns before your period', color: '#F4A261', marker: '☁' },
+];
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -70,6 +76,11 @@ function addDays(s: string, n: number) {
 function friendlyDate(s?: string) {
   if (!s) return '-';
   return toDate(s).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+function longDate(s?: string) {
+  if (!s) return '-';
+  return toDate(s).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
 function sortCycles(rows: Cycle[]) {
@@ -271,12 +282,48 @@ export default function MenstrualTrackerScreen() {
           </View>
 
           {nextStart ? (
-            <CycleSummaryCard
-              cycleLength={avgCycle}
-              periodLength={avgPeriod}
-              heavyOffset={avgHeavyOffset}
-              nextStart={nextStart}
-            />
+            <View style={styles.heroCard}>
+              <View style={styles.heroTopRow}>
+                <View>
+                  <Text style={styles.heroKicker}>{longDate(nextStart)}</Text>
+                  <Text style={styles.heroTitle}>
+                    {daysToNext === undefined
+                      ? 'Track your cycle'
+                      : daysToNext <= 0
+                      ? 'Your period may start now'
+                      : `${daysToNext} day${daysToNext === 1 ? '' : 's'} until your next period`}
+                  </Text>
+                  <Text style={styles.heroSub}>Based on your average {avgCycle}-day cycle</Text>
+                </View>
+                <View style={styles.dayBadge}>
+                  <Text style={styles.dayBadgeSmall}>Day</Text>
+                  <Text style={styles.dayBadgeValue}>{currentDay ? Math.max(1, currentDay) : '-'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.cycleRing}>
+                <View style={styles.ringTrack} />
+                <View style={styles.ringPeriod} />
+                <View style={styles.ringFertile} />
+                <View style={styles.ringDot} />
+                <Text style={styles.ringCenterLabel}>Today</Text>
+                <Text style={styles.ringCenterValue}>
+                  {currentPeriodActive ? 'Period day' : fertileStatus === 'High' ? 'Fertile window' : 'Tracking'}
+                </Text>
+              </View>
+
+              <View style={styles.heroFooter}>
+                <View style={styles.heroPill}>
+                  <Text style={styles.heroPillText}>Cycle {avgCycle}d</Text>
+                </View>
+                <View style={styles.heroPill}>
+                  <Text style={styles.heroPillText}>Period {avgPeriod}d</Text>
+                </View>
+                <View style={styles.heroPill}>
+                  <Text style={styles.heroPillText}>Heavy day {avgHeavyOffset + 1}</Text>
+                </View>
+              </View>
+            </View>
           ) : (
             <View style={styles.emptySummary}>
               <Text style={styles.emptyTitle}>Start with your latest period</Text>
@@ -328,6 +375,22 @@ export default function MenstrualTrackerScreen() {
             <Pressable style={styles.quickButton} onPress={() => setLastDate(todayISO())}>
               <Text style={styles.quickButtonText}>Period ended today</Text>
             </Pressable>
+          </View>
+
+          <View style={styles.trackCard}>
+            <Text style={styles.trackTitle}>What’s most important for you to track?</Text>
+            <Text style={styles.trackSub}>Select symptoms below when you log a cycle.</Text>
+            {TRACK_CATEGORIES.map((item) => (
+              <View key={item.title} style={styles.trackRow}>
+                <View style={[styles.trackIcon, { backgroundColor: item.color }]}>
+                  <Text style={styles.trackIconText}>{item.marker}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.trackRowTitle}>{item.title}</Text>
+                  <Text style={styles.trackRowSub}>{item.detail}</Text>
+                </View>
+              </View>
+            ))}
           </View>
 
           <View style={styles.card}>
@@ -502,27 +565,112 @@ function Metric({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   safe: { paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 },
   flex: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 28, gap: 12 },
+  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 28, gap: 12, backgroundColor: '#FFF8F8' },
   lockedContent: { flex: 1, paddingHorizontal: 16, paddingTop: 24, gap: 14 },
   header: { marginBottom: 2 },
-  eyebrow: { color: '#0A84FF', fontWeight: '800', marginBottom: 4 },
+  eyebrow: { color: '#C91F37', fontWeight: '800', marginBottom: 4 },
   title: { color: '#111827', fontSize: 30, fontWeight: '900' },
   subtitle: { color: '#64748B', lineHeight: 20, marginTop: 6 },
+  heroCard: {
+    backgroundColor: '#FFFDFC',
+    borderRadius: 28,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#F8D9D9',
+    shadowColor: '#B42318',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' },
+  heroKicker: { color: '#7A5A5A', fontWeight: '800', marginBottom: 6 },
+  heroTitle: { color: '#2B1B1B', fontSize: 25, fontWeight: '900', lineHeight: 30, maxWidth: 270 },
+  heroSub: { color: '#6B7280', marginTop: 8, fontWeight: '600' },
+  dayBadge: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#fff',
+    borderWidth: 3,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayBadgeSmall: { color: '#6B7280', fontSize: 11, fontWeight: '800' },
+  dayBadgeValue: { color: '#111827', fontSize: 18, fontWeight: '900' },
+  cycleRing: {
+    alignSelf: 'center',
+    width: 214,
+    height: 214,
+    borderRadius: 107,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+    marginBottom: 12,
+  },
+  ringTrack: {
+    position: 'absolute',
+    width: 198,
+    height: 198,
+    borderRadius: 99,
+    borderWidth: 18,
+    borderColor: '#EFE7E5',
+  },
+  ringPeriod: {
+    position: 'absolute',
+    width: 198,
+    height: 198,
+    borderRadius: 99,
+    borderWidth: 18,
+    borderTopColor: '#C70025',
+    borderRightColor: '#F25F5C',
+    borderBottomColor: 'transparent',
+    borderLeftColor: 'transparent',
+    transform: [{ rotate: '-38deg' }],
+  },
+  ringFertile: {
+    position: 'absolute',
+    width: 198,
+    height: 198,
+    borderRadius: 99,
+    borderWidth: 18,
+    borderTopColor: 'transparent',
+    borderRightColor: '#0096A6',
+    borderBottomColor: '#0096A6',
+    borderLeftColor: 'transparent',
+    transform: [{ rotate: '26deg' }],
+  },
+  ringDot: {
+    position: 'absolute',
+    bottom: 28,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#72D2DF',
+    borderWidth: 4,
+    borderColor: '#0096A6',
+  },
+  ringCenterLabel: { color: '#7A5A5A', fontWeight: '800', marginBottom: 4 },
+  ringCenterValue: { color: '#111827', fontWeight: '900', fontSize: 19, textAlign: 'center', maxWidth: 150 },
+  heroFooter: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  heroPill: { backgroundColor: '#C91F37', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  heroPillText: { color: '#fff', fontWeight: '900' },
   emptySummary: {
     borderWidth: 1,
-    borderColor: '#D7E7F8',
-    backgroundColor: '#F3F9FF',
-    borderRadius: 12,
+    borderColor: '#F8D9D9',
+    backgroundColor: '#FFFDFC',
+    borderRadius: 20,
     padding: 16,
   },
-  emptyTitle: { color: '#123B63', fontWeight: '900', fontSize: 17, marginBottom: 4 },
-  emptyText: { color: '#345066', lineHeight: 20 },
+  emptyTitle: { color: '#7F1D1D', fontWeight: '900', fontSize: 17, marginBottom: 4 },
+  emptyText: { color: '#6B4E4E', lineHeight: 20 },
   statusRow: { flexDirection: 'row', gap: 10 },
   statusTile: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderColor: '#F3D0D0',
+    borderRadius: 18,
     padding: 12,
     backgroundColor: '#fff',
   },
@@ -535,12 +683,12 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F9D5E5',
-    backgroundColor: '#FFF5FA',
-    borderRadius: 14,
+    borderColor: '#BDECEF',
+    backgroundColor: '#F0FCFD',
+    borderRadius: 20,
     padding: 14,
   },
-  fertileTitle: { color: '#9F1239', fontWeight: '900', marginBottom: 4 },
+  fertileTitle: { color: '#007C89', fontWeight: '900', marginBottom: 4 },
   fertileMain: { color: '#111827', fontWeight: '900', fontSize: 17 },
   fertileSub: { color: '#64748B', marginTop: 3 },
   fertileBadge: {
@@ -549,24 +697,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  fertileBadgeHigh: { backgroundColor: '#FB7185' },
-  fertileBadgeText: { color: '#BE185D', fontWeight: '900' },
+  fertileBadgeHigh: { backgroundColor: '#0096A6' },
+  fertileBadgeText: { color: '#007C89', fontWeight: '900' },
   fertileBadgeTextHigh: { color: '#fff' },
   quickButton: {
-    backgroundColor: '#EEF6FF',
-    borderColor: '#CFE5FF',
+    backgroundColor: '#FFF',
+    borderColor: '#F3D0D0',
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  quickButtonText: { color: '#0A53B8', fontWeight: '800' },
+  quickButtonText: { color: '#C91F37', fontWeight: '800' },
+  trackCard: {
+    backgroundColor: '#FFFDFC',
+    borderRadius: 26,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F8D9D9',
+  },
+  trackTitle: { color: '#2B1B1B', fontSize: 21, fontWeight: '900', textAlign: 'center', marginBottom: 4 },
+  trackSub: { color: '#7A5A5A', textAlign: 'center', marginBottom: 14, fontWeight: '600' },
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FAF8F7',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+  },
+  trackIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackIconText: { color: '#fff', fontWeight: '900', fontSize: 17 },
+  trackRowTitle: { color: '#007C89', fontWeight: '900', fontSize: 15 },
+  trackRowSub: { color: '#7A5A5A', marginTop: 2 },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 22,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F3D0D0',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -594,11 +770,11 @@ const styles = StyleSheet.create({
   notesInput: { minHeight: 84, textAlignVertical: 'top', marginBottom: 12 },
   todayButton: {
     borderRadius: 10,
-    backgroundColor: '#E8F0FF',
+    backgroundColor: '#FFF0F2',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  todayButtonText: { color: '#0A84FF', fontWeight: '800' },
+  todayButtonText: { color: '#C91F37', fontWeight: '800' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: {
     borderWidth: 1,
@@ -608,11 +784,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#fff',
   },
-  chipActive: { borderColor: '#0A84FF', backgroundColor: '#E8F0FF' },
+  chipActive: { borderColor: '#C91F37', backgroundColor: '#FFF0F2' },
   chipText: { color: '#374151', fontWeight: '800' },
-  chipTextActive: { color: '#0A84FF' },
+  chipTextActive: { color: '#C91F37' },
   primaryButton: {
-    backgroundColor: '#0A84FF',
+    backgroundColor: '#C91F37',
     borderRadius: 12,
     alignItems: 'center',
     paddingVertical: 14,
@@ -622,10 +798,10 @@ const styles = StyleSheet.create({
   metricsGrid: { flexDirection: 'row', gap: 10 },
   metric: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFDFC',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderColor: '#F3D0D0',
+    borderRadius: 18,
     padding: 12,
   },
   metricValue: { color: '#111827', fontWeight: '900', fontSize: 20 },
@@ -642,7 +818,7 @@ const styles = StyleSheet.create({
   historyMain: { flex: 1 },
   historyTitle: { color: '#111827', fontWeight: '900', fontSize: 16 },
   historySub: { color: '#64748B', marginTop: 2 },
-  historyTags: { color: '#0A53B8', marginTop: 4, fontWeight: '700' },
+  historyTags: { color: '#007C89', marginTop: 4, fontWeight: '700' },
   deleteButton: {
     borderRadius: 999,
     backgroundColor: '#FEF2F2',
@@ -652,11 +828,11 @@ const styles = StyleSheet.create({
   deleteButtonText: { color: '#B91C1C', fontWeight: '800' },
   secondaryButton: {
     alignSelf: 'center',
-    backgroundColor: '#E8F0FF',
+    backgroundColor: '#FFF0F2',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginTop: 2,
   },
-  secondaryButtonText: { color: '#0A84FF', fontWeight: '900' },
+  secondaryButtonText: { color: '#C91F37', fontWeight: '900' },
 });

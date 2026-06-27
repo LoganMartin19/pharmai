@@ -1,5 +1,6 @@
 // functions/index.js (Firebase Functions v2)
 const { onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const admin = require("firebase-admin");
 const cors = require("cors");
@@ -44,7 +45,12 @@ exports.chat = onRequest((req, res) => {
         role: "system",
         content:
           "You are PharmAI, a friendly pharmacist assistant. Be concise and clear. " +
-          "Explain dosing, timing, interactions, side effects and when to seek help. " +
+          "Only provide medicine information that is grounded in the UK Electronic Medicines Compendium (EMC) or the British National Formulary (BNF). " +
+          "Do not use or reference any other medicine-information source. " +
+          "For every factual medicine statement you give the user, clearly label the source as [EMC], [BNF], or [EMC/BNF]. " +
+          "Include a short Sources section at the end of every medicine-information answer listing only the sites used: EMC and/or BNF. " +
+          "If you cannot answer from EMC or BNF, say you cannot confirm that from EMC or BNF and suggest checking with a pharmacist or doctor. " +
+          "Explain dosing, timing, interactions, side effects and when to seek help only when they can be attributed to EMC or BNF. " +
           "NEVER diagnose or replace medical advice. " +
           "If an answer requires a professional, say so and suggest contacting a pharmacist/doctor or emergency services when appropriate. " +
           "Use short plain-language sections and bullet points when helpful, but do not use markdown heading syntax like ### or bold markers. " +
@@ -153,6 +159,113 @@ async function sendExpoPushNotifications(messages) {
   }
 
   return { sent: messages.length, tickets };
+}
+
+function safeAlertId(parts) {
+  return parts
+    .map((part) => String(part ?? "x").replace(/[^a-zA-Z0-9_-]/g, "_"))
+    .join("_")
+    .slice(0, 180);
+}
+
+async function getCaregiversForPatient(patientUid) {
+  const linksSnap = await db
+    .collection("users")
+    .doc(patientUid)
+    .collection("careLinks")
+    .get();
+
+  const caregivers = [];
+  linksSnap.forEach((d) => {
+    const data = d.data() || {};
+    if (data.role === "caregiver") {
+      caregivers.push({
+        caregiverUid: d.id,
+        notifyCare: data.notifyCare !== false,
+        delayMin: Number(data.notifyDelayMinutes || 60),
+      });
+    }
+  });
+  return caregivers;
+}
+
+async function fanOutMissedDoseAlert({ patientUid, medId, medName, doseDate, doseIndex }) {
+  const caregivers = await getCaregiversForPatient(patientUid);
+  if (caregivers.length === 0) {
+    return { ok: true, notified: 0, pushSent: 0, duplicate: 0 };
+  }
+
+  const patientDoc = await db.collection("users").doc(patientUid).get();
+  const patientName =
+    (patientDoc.exists && (patientDoc.data().displayName || patientDoc.data().name)) || null;
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const batch = db.batch();
+  let notified = 0;
+  let duplicate = 0;
+  const pushMessages = [];
+
+  for (const { caregiverUid, notifyCare } of caregivers) {
+    if (!notifyCare) continue;
+
+    const alertId = safeAlertId([patientUid, medId, doseDate, doseIndex]);
+    const inboxRef = db
+      .collection("users")
+      .doc(caregiverUid)
+      .collection("inbox")
+      .doc(alertId);
+
+    const existing = await inboxRef.get();
+    if (existing.exists) {
+      duplicate++;
+      continue;
+    }
+
+    batch.set(inboxRef, {
+      type: "missedDose",
+      createdAt: now,
+      delivered: false,
+      unread: true,
+      patientName,
+      patientUid,
+      medId,
+      medName: medName || null,
+      doseDate,
+      doseIndex: typeof doseIndex === "number" ? doseIndex : null,
+    });
+
+    const tokenSnap = await db
+      .collection("users")
+      .doc(caregiverUid)
+      .collection("expoPushTokens")
+      .get();
+
+    tokenSnap.forEach((tokenDoc) => {
+      const token = tokenDoc.data()?.token;
+      if (typeof token !== "string" || !/^(ExponentPushToken|ExpoPushToken)\[/.test(token)) return;
+      pushMessages.push({
+        to: token,
+        sound: "default",
+        priority: "high",
+        title: "Missed dose alert",
+        body: `${patientName || "Patient"} missed ${medName || "a dose"}`,
+        data: {
+          type: "missedDose",
+          patientUid,
+          medId,
+          medName: medName || null,
+          doseDate,
+          doseIndex: typeof doseIndex === "number" ? doseIndex : null,
+        },
+      });
+    });
+
+    notified++;
+  }
+
+  await batch.commit();
+  const push = await sendExpoPushNotifications(pushMessages);
+  return { ok: true, notified, pushSent: push.sent, duplicate };
 }
 
 // POST /createInvite   (Auth: Bearer <ID_TOKEN>)
@@ -305,94 +418,152 @@ exports.reportMissedDose = onRequest((req, res) => {
         return res.status(400).json({ error: "missing_fields" });
       }
 
-      // ----- Gather caregivers linked to this patient -----
-      const linksSnap = await db
-        .collection("users")
-        .doc(patientUid)
-        .collection("careLinks")
-        .get();
-
-      const caregivers = [];
-      linksSnap.forEach((d) => {
-        const data = d.data() || {};
-        if (data.role === "caregiver") {
-          caregivers.push({
-            caregiverUid: d.id,
-            notifyCare: data.notifyCare !== false, // default true
-            delayMin: Number(data.notifyDelayMinutes || 60),
-          });
-        }
+      const result = await fanOutMissedDoseAlert({
+        patientUid,
+        medId,
+        medName,
+        doseDate,
+        doseIndex,
       });
-
-      if (caregivers.length === 0) {
-        return res.json({ ok: true, notified: 0 });
-      }
-
-      const patientDoc = await db.collection("users").doc(patientUid).get();
-      const patientName =
-        (patientDoc.exists && (patientDoc.data().displayName || patientDoc.data().name)) || null;
-
-      // ----- Create inbox alerts for those who opted in -----
-      const now = admin.firestore.FieldValue.serverTimestamp();
-      const batch = db.batch();
-      let notified = 0;
-      const pushMessages = [];
-
-      for (const { caregiverUid, notifyCare } of caregivers) {
-        if (!notifyCare) continue;
-        const inboxRef = db
-          .collection("users")
-          .doc(caregiverUid)
-          .collection("inbox")
-          .doc();
-
-        batch.set(inboxRef, {
-          type: "missedDose",
-          createdAt: now,
-          delivered: false,
-          unread: true,
-          patientName,
-          patientUid,
-          medId,
-          medName: medName || null,
-          doseDate,
-          doseIndex: typeof doseIndex === "number" ? doseIndex : null,
-        });
-
-        const tokenSnap = await db
-          .collection("users")
-          .doc(caregiverUid)
-          .collection("expoPushTokens")
-          .get();
-
-        tokenSnap.forEach((tokenDoc) => {
-          const token = tokenDoc.data()?.token;
-          if (typeof token !== "string" || !/^(ExponentPushToken|ExpoPushToken)\[/.test(token)) return;
-          pushMessages.push({
-            to: token,
-            sound: "default",
-            title: "Missed dose alert",
-            body: `${patientName || "Patient"} missed ${medName || "a dose"}`,
-            data: {
-              type: "missedDose",
-              patientUid,
-              medId,
-              medName: medName || null,
-              doseDate,
-              doseIndex: typeof doseIndex === "number" ? doseIndex : null,
-            },
-          });
-        });
-
-        notified++;
-      }
-
-      await batch.commit();
-      const push = await sendExpoPushNotifications(pushMessages);
-      return res.json({ ok: true, notified, pushSent: push.sent });
+      return res.json(result);
     } catch (e) {
       console.error("reportMissedDose failed:", e);
       return res.status(500).json({ error: "report_failed" });
     }
   });
+});
+
+function nextPendingDueAtFrom({ doseDate, time, delayMin }) {
+  if (!doseDate || !time) return null;
+  const [hourRaw, minuteRaw] = String(time).split(":");
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+  const nextDose = new Date(`${doseDate}T00:00:00.000Z`);
+  nextDose.setUTCDate(nextDose.getUTCDate() + 1);
+  nextDose.setUTCHours(hour, minute, 0, 0);
+  return admin.firestore.Timestamp.fromMillis(nextDose.getTime() + delayMin * 60 * 1000);
+}
+
+async function scheduleNextPendingAlert({ patientUid, med, medId, doseIndex, doseDate, delayMin }) {
+  const times = Array.isArray(med.times)
+    ? med.times
+    : String(med.time || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+  const time = times[doseIndex];
+  const nextDueAt = nextPendingDueAtFrom({ doseDate, time, delayMin });
+  if (!nextDueAt) return;
+
+  const nextDoseDate = new Date(`${doseDate}T00:00:00.000Z`);
+  nextDoseDate.setUTCDate(nextDoseDate.getUTCDate() + 1);
+  const nextDoseDateIso = nextDoseDate.toISOString().slice(0, 10);
+
+  if (med.endDate && nextDoseDateIso > med.endDate) return;
+
+  const pendingId = safeAlertId([medId, doseIndex]);
+  await db
+    .collection("users")
+    .doc(patientUid)
+    .collection("carePendingAlerts")
+    .doc(pendingId)
+    .set(
+      {
+        medId,
+        medName: med.name || null,
+        doseIndex,
+        doseDate: nextDoseDateIso,
+        dueAt: nextDueAt,
+        processed: false,
+        lastRolledForwardAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
+exports.processCarePendingAlerts = onSchedule("every 5 minutes", async () => {
+  const now = admin.firestore.Timestamp.now();
+  const snap = await db
+    .collectionGroup("carePendingAlerts")
+    .where("dueAt", "<=", now)
+    .limit(100)
+    .get();
+
+  if (snap.empty) return;
+
+  for (const pendingDoc of snap.docs) {
+    try {
+      const data = pendingDoc.data() || {};
+      const patientRef = pendingDoc.ref.parent.parent;
+      const patientUid = patientRef?.id;
+      const medId = data.medId;
+      const doseDate = data.doseDate;
+      const doseIndex = Number(data.doseIndex);
+
+      if (!patientUid || !medId || !doseDate || !Number.isFinite(doseIndex)) {
+        await pendingDoc.ref.delete();
+        continue;
+      }
+
+      const medSnap = await db
+        .collection("users")
+        .doc(patientUid)
+        .collection("reminders")
+        .doc(medId)
+        .get();
+
+      if (!medSnap.exists) {
+        await pendingDoc.ref.delete();
+        continue;
+      }
+
+      const med = medSnap.data() || {};
+      const history = Array.isArray(med.history) ? med.history : [];
+      const dayHistory = history.find((row) => row?.date === doseDate);
+      const isTaken = !!dayHistory?.taken?.[doseIndex];
+
+      if (isTaken) {
+        // Nothing to send.
+      } else {
+        await fanOutMissedDoseAlert({
+          patientUid,
+          medId,
+          medName: data.medName || med.name || null,
+          doseDate,
+          doseIndex,
+        });
+      }
+
+      const caregivers = await getCaregiversForPatient(patientUid);
+      const activeDelays = caregivers
+        .filter((caregiver) => caregiver.notifyCare)
+        .map((caregiver) => caregiver.delayMin)
+        .filter((minutes) => Number.isFinite(minutes) && minutes > 0);
+      const delayMin = activeDelays.length ? Math.min(...activeDelays) : 60;
+
+      await pendingDoc.ref.delete();
+
+      await scheduleNextPendingAlert({
+        patientUid,
+        med,
+        medId,
+        doseIndex,
+        doseDate,
+        delayMin,
+      });
+    } catch (e) {
+      console.error("processCarePendingAlerts item failed:", pendingDoc.ref.path, e);
+      await pendingDoc.ref.set(
+        {
+          lastError: String(e?.message || e),
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+  }
 });

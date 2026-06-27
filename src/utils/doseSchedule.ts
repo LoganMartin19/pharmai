@@ -11,6 +11,14 @@ export const DOSE_ICONS = {
 export function doseCount(frequency?: Medication['frequency']) {
   if (frequency === 'Twice daily') return 2;
   if (frequency === 'Three times daily') return 3;
+  if (frequency === 'Four times daily') return 4;
+
+  const match = String(frequency ?? '').match(/^(\d+)\s+times\s+daily$/i);
+  if (match) {
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+
   return 1;
 }
 

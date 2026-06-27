@@ -40,7 +40,7 @@ export default function HealthHomeScreen() {
 
         <View style={styles.card}>
           <Row
-            emoji="🩸"
+            emoji="◌"
             title="Menstrual cycle"
             subtitle="Log periods, see predictions & next cycle"
             onPress={() => navigation.navigate('Menstrual')}

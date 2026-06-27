@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/MainNavigator';
 import { Medication } from '../types/Medication';
 import styles from './styles/MedicationTrackerScreen.styles';
 import MedicationSafetyCard from '../components/MedicationSafetyCard';
+import { doseCount } from '../utils/doseSchedule';
 
 type MedicationTrackerRouteProp = RouteProp<RootStackParamList, 'MedicationTracker'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MedicationTracker'>;
@@ -91,9 +92,7 @@ export default function MedicationTrackerScreen() {
     return Math.round(have.reduce((a, b) => a + b.pct, 0) / have.length);
   }, [stats]);
 
-  const freq =
-    medication.frequency === 'Twice daily' ? 2 :
-    medication.frequency === 'Three times daily' ? 3 : 1;
+  const freq = doseCount(medication.frequency);
 
   /* ---------------- Render ---------------- */
   return (

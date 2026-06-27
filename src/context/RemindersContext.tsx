@@ -68,6 +68,12 @@ export function RemindersProvider({ children }: { children: ReactNode }) {
         const snapshot = await getDocs(userRemindersRef);
         const loadedReminders = snapshot.docs.map(d => d.data() as Medication);
         setReminders(loadedReminders);
+        loadedReminders.forEach((reminder) => {
+          const timesArray = normalizeReminderTimes(reminder);
+          cancelReminderNotifications(reminder.id)
+            .then(() => scheduleReminderNotifications({ ...reminder, times: timesArray }))
+            .catch((error) => console.warn('reschedule reminder failed', error));
+        });
       } else {
         setUserId(null);
         setReminders([]);
