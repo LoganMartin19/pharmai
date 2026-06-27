@@ -117,8 +117,10 @@ export default function ChatScreen() {
     const mine: Msg | undefined = preset ?? (input.trim() ? { role: 'user', content: input.trim() } : undefined);
     if (!mine) return;
 
-    const nextMessages = [...messages, mine];
-    setMessages((cur) => [...cur, mine]);
+    const nextMessages = preset && messages.length === 1 && messages[0]?.content === preset.content
+      ? messages
+      : [...messages, mine];
+    setMessages(nextMessages);
     if (!preset) setInput('');
     setLoading(true);
     setTimeout(scrollToEnd, 10);

@@ -18,6 +18,7 @@ import { useUser } from '../context/UserContext';
 
 type Flow = 'light' | 'medium' | 'heavy';
 type Symptom = 'cramps' | 'headache' | 'bloating' | 'mood' | 'fatigue' | 'tenderness';
+type TrackCategory = 'flow' | 'feelings' | 'pain' | 'fertile' | 'pms';
 
 type Cycle = {
   id: string;
@@ -25,6 +26,7 @@ type Cycle = {
   heavyDate?: string;
   lastDate?: string;
   flow?: Flow;
+  trackingCategories?: TrackCategory[];
   symptoms?: Symptom[];
   notes?: string;
 };
@@ -43,12 +45,18 @@ const SYMPTOMS: Array<{ value: Symptom; label: string }> = [
   { value: 'fatigue', label: 'Fatigue' },
   { value: 'tenderness', label: 'Tenderness' },
 ];
-const TRACK_CATEGORIES = [
-  { title: 'Period flow', detail: 'Start, end, and intensity', color: '#E63946', marker: '•' },
-  { title: 'My feelings', detail: 'Mood and energy changes', color: '#F77F00', marker: '☺' },
-  { title: 'Cramps and pain', detail: 'Pain, headache, bloating', color: '#4676C7', marker: '↯' },
-  { title: 'Fertile window', detail: 'Ovulation prediction', color: '#0096A6', marker: '◌' },
-  { title: 'PMS', detail: 'Patterns before your period', color: '#F4A261', marker: '☁' },
+const TRACK_CATEGORIES: Array<{
+  value: TrackCategory;
+  title: string;
+  detail: string;
+  color: string;
+  marker: string;
+}> = [
+  { value: 'flow', title: 'Period flow', detail: 'Start, end, and intensity', color: '#E63946', marker: '•' },
+  { value: 'feelings', title: 'My feelings', detail: 'Mood and energy changes', color: '#F77F00', marker: '☺' },
+  { value: 'pain', title: 'Cramps and pain', detail: 'Pain, headache, bloating', color: '#4676C7', marker: '↯' },
+  { value: 'fertile', title: 'Fertile window', detail: 'Ovulation prediction', color: '#0096A6', marker: '◌' },
+  { value: 'pms', title: 'PMS', detail: 'Patterns before your period', color: '#F4A261', marker: '☁' },
 ];
 
 function todayISO() {
@@ -95,6 +103,7 @@ export default function MenstrualTrackerScreen() {
   const [heavyDate, setHeavyDate] = useState('');
   const [lastDate, setLastDate] = useState('');
   const [flow, setFlow] = useState<Flow>('medium');
+  const [trackingCategories, setTrackingCategories] = useState<TrackCategory[]>([]);
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -123,8 +132,17 @@ export default function MenstrualTrackerScreen() {
     setHeavyDate(entry.heavyDate ?? '');
     setLastDate(entry.lastDate ?? '');
     setFlow(entry.flow ?? 'medium');
+    setTrackingCategories(entry.trackingCategories ?? []);
     setSymptoms(entry.symptoms ?? []);
     setNotes(entry.notes ?? '');
+  }
+
+  function toggleTrackCategory(value: TrackCategory) {
+    setTrackingCategories((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]
+    );
   }
 
   function toggleSymptom(value: Symptom) {
@@ -140,6 +158,7 @@ export default function MenstrualTrackerScreen() {
     setHeavyDate('');
     setLastDate('');
     setFlow('medium');
+    setTrackingCategories([]);
     setSymptoms([]);
     setNotes('');
   }
@@ -172,6 +191,7 @@ export default function MenstrualTrackerScreen() {
         heavyDate: heavyDate || undefined,
         lastDate: lastDate || undefined,
         flow,
+        trackingCategories,
         symptoms,
         notes: notes.trim() || undefined,
       };
@@ -379,18 +399,30 @@ export default function MenstrualTrackerScreen() {
 
           <View style={styles.trackCard}>
             <Text style={styles.trackTitle}>What’s most important for you to track?</Text>
-            <Text style={styles.trackSub}>Select symptoms below when you log a cycle.</Text>
-            {TRACK_CATEGORIES.map((item) => (
-              <View key={item.title} style={styles.trackRow}>
-                <View style={[styles.trackIcon, { backgroundColor: item.color }]}>
-                  <Text style={styles.trackIconText}>{item.marker}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.trackRowTitle}>{item.title}</Text>
-                  <Text style={styles.trackRowSub}>{item.detail}</Text>
-                </View>
-              </View>
-            ))}
+            <Text style={styles.trackSub}>Tap all that apply, then add details below.</Text>
+            {TRACK_CATEGORIES.map((item) => {
+              const active = trackingCategories.includes(item.value);
+              return (
+                <Pressable
+                  key={item.value}
+                  style={[styles.trackRow, active && styles.trackRowActive]}
+                  onPress={() => toggleTrackCategory(item.value)}
+                >
+                  <View style={[styles.trackIcon, { backgroundColor: item.color }]}>
+                    <Text style={styles.trackIconText}>{item.marker}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.trackRowTitle, active && styles.trackRowTitleActive]}>{item.title}</Text>
+                    <Text style={styles.trackRowSub}>{item.detail}</Text>
+                  </View>
+                  <View style={[styles.trackCheck, active && styles.trackCheckActive]}>
+                    <Text style={[styles.trackCheckText, active && styles.trackCheckTextActive]}>
+                      {active ? '✓' : ''}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
 
           <View style={styles.card}>
@@ -490,6 +522,14 @@ export default function MenstrualTrackerScreen() {
                     </Text>
                     {!!cycle.symptoms?.length && (
                       <Text style={styles.historyTags}>{cycle.symptoms.map((item) => item[0].toUpperCase() + item.slice(1)).join(', ')}</Text>
+                    )}
+                    {!!cycle.trackingCategories?.length && (
+                      <Text style={styles.historyTags}>
+                        {cycle.trackingCategories
+                          .map((value) => TRACK_CATEGORIES.find((item) => item.value === value)?.title)
+                          .filter(Boolean)
+                          .join(', ')}
+                      </Text>
                     )}
                   </Pressable>
                   <Pressable style={styles.deleteButton} onPress={() => deleteCycle(cycle.id)}>
@@ -726,6 +766,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  trackRowActive: {
+    backgroundColor: '#FFF0F2',
+    borderColor: '#C91F37',
   },
   trackIcon: {
     width: 36,
@@ -736,7 +782,24 @@ const styles = StyleSheet.create({
   },
   trackIconText: { color: '#fff', fontWeight: '900', fontSize: 17 },
   trackRowTitle: { color: '#007C89', fontWeight: '900', fontSize: 15 },
+  trackRowTitleActive: { color: '#C91F37' },
   trackRowSub: { color: '#7A5A5A', marginTop: 2 },
+  trackCheck: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  trackCheckActive: {
+    backgroundColor: '#C91F37',
+    borderColor: '#C91F37',
+  },
+  trackCheckText: { color: '#fff', fontWeight: '900' },
+  trackCheckTextActive: { color: '#fff' },
   card: {
     backgroundColor: '#fff',
     borderRadius: 22,
