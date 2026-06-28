@@ -8,6 +8,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import RefillScreen from '../screens/RefillScreen';
+import PharmacyScreen from '../screens/PharmacyScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -57,6 +58,7 @@ export type HomeTabParamList = {
   Home: undefined;
   Reminders: undefined;
   Refills: undefined;
+  Pharmacy: undefined;
   Chat: undefined;
   Settings: undefined;
   Health: undefined;
@@ -74,6 +76,7 @@ function HomeTab() {
           route.name === 'Home' ? '🏠' :
           route.name === 'Reminders' ? '📅' :
           route.name === 'Refills' ? '🏥' :
+          route.name === 'Pharmacy' ? '💊' :
           route.name === 'Chat' ? '💬' :
           route.name === 'Settings' ? '⚙️' :
           route.name === 'Health' ? '🩺' :
@@ -94,6 +97,7 @@ function HomeTab() {
       />
       <Tab.Screen name="Reminders" component={RemindersScreen} />
       <Tab.Screen name="Refills" component={RefillScreen} />
+      <Tab.Screen name="Pharmacy" component={PharmacyScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
       <Tab.Screen name="Health" component={HealthNavigator} />

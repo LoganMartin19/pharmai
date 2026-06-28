@@ -1,5 +1,5 @@
 // src/screens/AddReminderScreen.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -22,44 +22,10 @@ import PillBadge from '../components/PillBadge';
 import PillLookPicker from '../components/PillLookPicker';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { doseCount } from '../utils/doseSchedule';
+import { MedicineSuggestion, searchMedicineNames } from '../utils/medicineDirectory';
 
 type R = RouteProp<RootStackParamList, 'AddReminder'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AddReminder'>;
-
-const MEDICATION_SUGGESTIONS = [
-  'Amlodipine',
-  'Amoxicillin',
-  'Aspirin',
-  'Atorvastatin',
-  'Azithromycin',
-  'Bisoprolol',
-  'Cetirizine',
-  'Clarithromycin',
-  'Co-codamol',
-  'Codeine',
-  'Doxycycline',
-  'Flucloxacillin',
-  'Fluconazole',
-  'Fluoxetine',
-  'Folic acid',
-  'Furosemide',
-  'Gabapentin',
-  'Ibuprofen',
-  'Lansoprazole',
-  'Levothyroxine',
-  'Lisinopril',
-  'Metformin',
-  'Naproxen',
-  'Omeprazole',
-  'Paracetamol',
-  'Penicillin V',
-  'Prednisolone',
-  'Ramipril',
-  'Salbutamol',
-  'Sertraline',
-  'Simvastatin',
-  'Warfarin',
-];
 
 function shapeDoseUnit(shape: PillStyle['shape']) {
   if (shape === 'capsule') return 'capsule';
@@ -129,6 +95,7 @@ export default function AddReminderScreen() {
     original?.name ?? (prefill.name ?? '')
   );
   const [showMedicationSuggestions, setShowMedicationSuggestions] = useState(false);
+  const [medicationSuggestions, setMedicationSuggestions] = useState<MedicineSuggestion[]>([]);
   const [selectedDosage, setSelectedDosage] = useState(() => {
     const dosage = original?.dosage ?? prefill.dosage ?? doseLabelForShape(initialPillStyle.shape, 1);
     return /^\d+(?:\.\d+)?\s*ml$/i.test(String(dosage)) ? 'Liquid ml' : dosage;
@@ -175,13 +142,24 @@ export default function AddReminderScreen() {
     initialPillStyle
   );
 
-  const medicationSuggestions = useMemo(() => {
-    const query = medicationName.trim().toLowerCase();
-    if (query.length < 2) return [];
-    return MEDICATION_SUGGESTIONS
-      .filter((name) => name.toLowerCase().startsWith(query))
-      .slice(0, 6);
-  }, [medicationName]);
+  useEffect(() => {
+    const query = medicationName.trim();
+    if (query.length < 2 || !showMedicationSuggestions) {
+      setMedicationSuggestions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const results = await searchMedicineNames(query);
+      if (!cancelled) setMedicationSuggestions(results);
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [medicationName, showMedicationSuggestions]);
 
   const selectedFrequency = frequencyLabel(dailyDoseCount);
   const shapeDosageOptions = useMemo(
@@ -292,16 +270,17 @@ export default function AddReminderScreen() {
         />
         {showMedicationSuggestions && medicationSuggestions.length > 0 && (
           <View style={styles.suggestionsBox}>
-            {medicationSuggestions.map((name) => (
+            {medicationSuggestions.map((suggestion) => (
               <Pressable
-                key={name}
+                key={`${suggestion.source}-${suggestion.name}`}
                 style={styles.suggestionItem}
                 onPress={() => {
-                  setMedicationName(name);
+                  setMedicationName(suggestion.name);
                   setShowMedicationSuggestions(false);
                 }}
               >
-                <Text style={styles.suggestionText}>{name}</Text>
+                <Text style={styles.suggestionText}>{suggestion.name}</Text>
+                <Text style={styles.suggestionSource}>{suggestion.source}</Text>
               </Pressable>
             ))}
           </View>

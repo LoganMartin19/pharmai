@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeLayout from '../components/SafeLayout';
 import type { RootStackParamList } from '../navigation/MainNavigator';
+import { MedicineSuggestion, isRecognisedMedicineName, searchMedicineNames } from '../utils/medicineDirectory';
 
 type Route = RouteProp<RootStackParamList, 'ScanReview'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ScanReview'>;
@@ -19,10 +20,45 @@ export default function ScanReviewScreen() {
   const [name, setName] = useState(parsed.name ?? '');
   const [dosage, setDosage] = useState(parsed.dosage ?? '1 tablet');
   const [frequency, setFrequency] = useState<Frequency>((parsed.frequency as Frequency) ?? 'Once daily');
+  const [suggestions, setSuggestions] = useState<MedicineSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  const continueToReminder = () => {
+  useEffect(() => {
+    const query = name.trim();
+    if (query.length < 2 || !showSuggestions) {
+      setSuggestions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const results = await searchMedicineNames(query);
+      if (!cancelled) setSuggestions(results);
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [name, showSuggestions]);
+
+  const continueToReminder = async () => {
     if (!name.trim()) {
       Alert.alert('Medication name needed', 'Please check the scan and enter a medication name.');
+      return;
+    }
+
+    setChecking(true);
+    const recognised = await isRecognisedMedicineName(name);
+    setChecking(false);
+
+    if (!recognised) {
+      Alert.alert(
+        'Medicine not recognised',
+        'Please select a medicine from the NHS Scotland Open Data suggestions before continuing.'
+      );
+      setShowSuggestions(true);
       return;
     }
 
@@ -42,7 +78,33 @@ export default function ScanReviewScreen() {
         <Text style={styles.subtitle}>Confirm the details before creating a reminder.</Text>
 
         <Text style={styles.label}>Medication name</Text>
-        <TextInput value={name} onChangeText={setName} placeholder="e.g. Amoxicillin" style={styles.input} />
+        <TextInput
+          value={name}
+          onFocus={() => setShowSuggestions(true)}
+          onChangeText={(value) => {
+            setName(value);
+            setShowSuggestions(true);
+          }}
+          placeholder="e.g. Amoxicillin"
+          style={styles.input}
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <View style={styles.suggestionsBox}>
+            {suggestions.map((suggestion) => (
+              <Pressable
+                key={`${suggestion.source}-${suggestion.name}`}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setName(suggestion.name);
+                  setShowSuggestions(false);
+                }}
+              >
+                <Text style={styles.suggestionText}>{suggestion.name}</Text>
+                <Text style={styles.suggestionSource}>{suggestion.source}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.label}>Dosage</Text>
         <TextInput value={dosage} onChangeText={setDosage} placeholder="e.g. 500 mg" style={styles.input} />
@@ -65,8 +127,8 @@ export default function ScanReviewScreen() {
           <Text style={styles.rawText}>{rawText || 'No OCR text available.'}</Text>
         </View>
 
-        <Pressable style={styles.primaryButton} onPress={continueToReminder}>
-          <Text style={styles.primaryButtonText}>Continue</Text>
+        <Pressable style={[styles.primaryButton, checking && styles.primaryButtonDisabled]} disabled={checking} onPress={continueToReminder}>
+          {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Continue</Text>}
         </Pressable>
       </ScrollView>
     </SafeLayout>
@@ -86,6 +148,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  suggestionsBox: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  suggestionText: { color: '#111827', fontSize: 15, fontWeight: '700' },
+  suggestionSource: { color: '#6B7280', fontSize: 12, marginTop: 2 },
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   option: {
     paddingHorizontal: 12,
@@ -114,5 +192,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
   },
+  primaryButtonDisabled: { opacity: 0.65 },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

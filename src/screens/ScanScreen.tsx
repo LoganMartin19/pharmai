@@ -8,6 +8,7 @@ import TextRecognition from 'react-native-text-recognition';
 import ImageEditor from '@react-native-community/image-editor';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { parseMedicationText } from '../utils/medParser';
+import { findMedicineInText } from '../utils/medicineDirectory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -75,8 +76,13 @@ export default function ScanScreen() {
       const text = lines.join('\n');
 
       const parsed = parseMedicationText(text);
-      if (!parsed.name && !parsed.dosage && !parsed.frequency) {
-        Alert.alert('No label text detected', 'Try again with better lighting and keep the label centered.');
+      const recognisedMedicine = await findMedicineInText(text);
+
+      if (!recognisedMedicine) {
+        Alert.alert(
+          'Medicine not recognised',
+          'I could not match the scan to a medicine in the NHS Scotland Open Data list. Try again with the medicine name centred, or enter it manually.'
+        );
         setWorking(false);
         return;
       }
@@ -84,7 +90,7 @@ export default function ScanScreen() {
       nav.navigate('ScanReview', {
         rawText: text,
         parsed: {
-          name: parsed.name ?? '',
+          name: recognisedMedicine.name,
           dosage: parsed.dosage ?? '1 tablet',
           frequency: (parsed.frequency as any) ?? 'Once daily',
         },

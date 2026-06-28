@@ -41,6 +41,11 @@ export default StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  suggestionSource: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 2,
+  },
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

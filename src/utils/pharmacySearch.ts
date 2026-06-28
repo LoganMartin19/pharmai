@@ -1,5 +1,12 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import {
+  PharmacyService,
+  PharmacyServiceId,
+  buildPharmacyServices,
+  inferOsmServices,
+  normalizeServiceIds,
+} from './pharmacyServices';
 
 export type Pharmacy = {
   id: string;
@@ -16,6 +23,7 @@ export type Pharmacy = {
   availabilityStatus?: 'available_now' | 'usually_available' | 'order_by_tomorrow' | 'call_to_confirm' | 'out_of_stock';
   acceptsRefillRequests?: boolean;
   responseWindowMinutes?: number;
+  services?: PharmacyService[];
 };
 
 type OverpassElement = {
@@ -37,6 +45,7 @@ type SponsoredPartner = {
   availabilityStatus?: Pharmacy['availabilityStatus'];
   acceptsRefillRequests?: boolean;
   responseWindowMinutes?: number;
+  services?: PharmacyServiceId[];
 };
 
 const AVAILABILITY_STATUSES: Array<NonNullable<Pharmacy['availabilityStatus']>> = [
@@ -108,6 +117,7 @@ async function getSponsoredPartners(): Promise<SponsoredPartner[]> {
           availabilityStatus,
           acceptsRefillRequests: data.acceptsRefillRequests !== false,
           responseWindowMinutes: Number(data.responseWindowMinutes || 60),
+          services: normalizeServiceIds(data.services),
         };
       })
       .filter((partner): partner is SponsoredPartner => !!partner && partner.matcher.length > 0)
@@ -151,6 +161,10 @@ function parsePharmacy(
     availabilityStatus: partner?.availabilityStatus,
     acceptsRefillRequests: partner?.acceptsRefillRequests,
     responseWindowMinutes: partner?.responseWindowMinutes,
+    services: buildPharmacyServices({
+      verified: partner?.services,
+      osm: inferOsmServices(tags),
+    }),
   };
 }
 
