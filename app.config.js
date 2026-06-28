@@ -12,6 +12,9 @@ module.exports = {
     bundleIdentifier: 'Logan.PharmAI',
     supportsTablet: false,
     icon: './assets/icon.png',
+    config: {
+      usesNonExemptEncryption: false,
+    },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       CFBundleIconName: 'AppIcon',
