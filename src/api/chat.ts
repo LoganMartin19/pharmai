@@ -6,7 +6,11 @@ const CHAT_URLS = [
   'https://us-central1-pharmai-d45ab.cloudfunctions.net/chat',
 ];
 
-export async function sendChatMessage(messages: Msg[], chatId?: string): Promise<{ reply: string; chatId?: string }> {
+export async function sendChatMessage(messages: Msg[], chatId?: string): Promise<{
+  reply: string;
+  chatId?: string;
+  nhsAttribution?: Msg['nhsAttribution'] | null;
+}> {
   const user = auth.currentUser;
   if (!user) throw new Error('User not logged in');
   const token = await user.getIdToken();

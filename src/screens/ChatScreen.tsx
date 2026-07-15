@@ -9,6 +9,8 @@ import {
   Platform,
   StyleSheet,
   ActivityIndicator,
+  Image,
+  Linking,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
@@ -81,7 +83,7 @@ export default function ChatScreen() {
       setChatId(summary.id);
       setMessages(snap.docs.map((doc) => {
         const data = doc.data() as Msg;
-        return { role: data.role, content: data.content };
+        return { role: data.role, content: data.content, nhsAttribution: data.nhsAttribution };
       }));
       setTimeout(scrollToEnd, 50);
     } catch (e) {
@@ -129,7 +131,11 @@ export default function ChatScreen() {
       const data = await sendChatMessage(nextMessages, chatId);
       if (data.chatId && !chatId) setChatId(data.chatId);
 
-      setMessages((cur) => [...cur, { role: 'assistant', content: data.reply }]);
+      setMessages((cur) => [...cur, {
+        role: 'assistant',
+        content: data.reply,
+        nhsAttribution: data.nhsAttribution || undefined,
+      }]);
       setTimeout(scrollToEnd, 10);
       loadHistory();
     } catch (e) {
@@ -191,6 +197,24 @@ export default function ChatScreen() {
             return (
               <View style={[styles.bubble, mine ? styles.user : styles.bot]}>
                 <ChatText text={item.content} mine={mine} />
+                {!mine && item.nhsAttribution && (
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel="Open the source article on the NHS website"
+                    onPress={() => Linking.openURL(item.nhsAttribution!.sourceUrl)}
+                    style={styles.nhsAttribution}
+                  >
+                    {!!item.nhsAttribution.logoUrl && (
+                      <Image
+                        source={{ uri: item.nhsAttribution.logoUrl }}
+                        resizeMode="contain"
+                        style={styles.nhsLogo}
+                      />
+                    )}
+                    <Text style={styles.nhsAttributionText}>{item.nhsAttribution.label}</Text>
+                    <Text style={styles.nhsSourceLink}>View source on NHS.uk</Text>
+                  </Pressable>
+                )}
               </View>
             );
           }}
@@ -242,6 +266,10 @@ const styles = StyleSheet.create({
   headingText: { fontWeight: '900', color: '#111827' },
   userText: { color: '#fff' },
   botText: { color: '#111827' },
+  nhsAttribution: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#CBD5E1', marginTop: 10, paddingTop: 9 },
+  nhsLogo: { width: 150, height: 48, alignSelf: 'flex-start' },
+  nhsAttributionText: { color: '#475569', fontSize: 12, lineHeight: 17 },
+  nhsSourceLink: { color: '#005EB8', fontWeight: '800', fontSize: 12, marginTop: 3, textDecorationLine: 'underline' },
   inputRow: { flexDirection: 'row', padding: 10, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#e5e7eb' },
   input: { flex: 1, minHeight: 44, maxHeight: 120, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#f8fafc', borderRadius: 12, color: '#111827' },
   send: { height: 44, paddingHorizontal: 16, borderRadius: 12, backgroundColor: '#0A84FF', alignItems: 'center', justifyContent: 'center' },

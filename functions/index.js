@@ -137,8 +137,9 @@ async function getNhsMedicineGrounding(client, messages) {
   }
   const content = await upstream.json();
   const sourceUrl = typeof content?.url === "string" ? content.url : null;
+  const logoUrl = typeof content?.author?.logo === "string" ? content.author.logo : null;
   const text = [...new Set(collectNhsText(content))].join("\n").slice(0, 24000);
-  return text ? { medicine: parsed.medicine, sourceUrl, text } : null;
+  return text ? { medicine: parsed.medicine, sourceUrl, logoUrl, text } : null;
 }
 
 /* =======================================================================================
@@ -211,7 +212,10 @@ exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, r
 
       // 🧹 Keep only recent context
       const MAX_CONTEXT = 10;
-      const trimmed = messages.slice(-MAX_CONTEXT);
+      const trimmed = messages.slice(-MAX_CONTEXT).map((message) => ({
+        role: message?.role,
+        content: String(message?.content || ""),
+      }));
 
       // Create OpenAI client with v2 secret
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -249,6 +253,13 @@ exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, r
       const reply =
         resp.choices?.[0]?.message?.content ||
         "Sorry, I couldn't generate a response.";
+      const nhsAttribution = nhsGrounding?.sourceUrl
+        ? {
+            sourceUrl: nhsGrounding.sourceUrl,
+            logoUrl: nhsGrounding.logoUrl || null,
+            label: "Information supplied by the NHS website",
+          }
+        : null;
 
       // 🗂️ Save to Firestore
       const chatRef = chatId
@@ -272,7 +283,7 @@ exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, r
 
       const toSave = [
         ...trimmed.slice(-1), // latest user message
-        { role: "assistant", content: reply },
+        { role: "assistant", content: reply, ...(nhsAttribution ? { nhsAttribution } : {}) },
       ];
 
       toSave.forEach((m) => {
@@ -282,7 +293,7 @@ exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, r
 
       await batch.commit();
 
-      return res.json({ reply, chatId: createdId });
+      return res.json({ reply, chatId: createdId, nhsAttribution });
     } catch (err) {
       console.error("LLM error:", err);
       const status =

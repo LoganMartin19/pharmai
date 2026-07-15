@@ -59,12 +59,6 @@ export default function CarePatientScreen() {
   useEffect(() => {
     navigation.setOptions({
       title: displayName || 'Patient',
-      headerBackTitle: 'Back',
-      headerLeft: () => (
-        <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={local.headerBack}>
-          <Text style={local.headerBackText}>‹ Back</Text>
-        </Pressable>
-      ),
     });
 
     const load = async () => {
@@ -470,14 +464,6 @@ const local = StyleSheet.create({
   },
   headerContent: {
     paddingBottom: 12,
-  },
-  headerBack: {
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  headerBackText: {
-    color: '#0A84FF',
-    fontSize: 17,
   },
   notifyRow: {
     flexDirection: 'row',

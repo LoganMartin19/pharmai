@@ -24,6 +24,8 @@ export type Pharmacy = {
   acceptsRefillRequests?: boolean;
   responseWindowMinutes?: number;
   services?: PharmacyService[];
+  scotlandContractorCode?: string;
+  postcode?: string;
 };
 
 type OverpassElement = {
@@ -36,7 +38,21 @@ type OverpassElement = {
 };
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const NHS_SCOTLAND_ACTIVITY_RESOURCE_ID = 'dedc3aba-9351-412f-b890-7df4f97f3d1a';
+const NHS_SCOTLAND_DISPENSER_RESOURCE_ID = 'f1f22bee-6ec2-4d33-a041-9cebaffd992e';
+const NHS_SCOTLAND_DATASTORE_SQL_URL = 'https://www.opendata.nhs.scot/api/3/action/datastore_search_sql';
 const SEARCH_RADIUS_METERS = 10000;
+
+type NhsScotlandDispenserRecord = {
+  DispCode?: string | number;
+  DispLocationName?: string;
+  DispLocationAddress1?: string;
+  DispLocationAddress2?: string;
+  DispLocationAddress3?: string;
+  DispLocationAddress4?: string;
+  DispLocationPostcode?: string;
+  DispLocationTelNo?: string;
+};
 
 type SponsoredPartner = {
   id: string;
@@ -46,6 +62,7 @@ type SponsoredPartner = {
   acceptsRefillRequests?: boolean;
   responseWindowMinutes?: number;
   services?: PharmacyServiceId[];
+  scotlandContractorCode?: string;
 };
 
 const AVAILABILITY_STATUSES: Array<NonNullable<Pharmacy['availabilityStatus']>> = [
@@ -95,6 +112,55 @@ function formatAddress(tags: Record<string, string>) {
     .join(', ');
 }
 
+function normalizePostcode(value?: string) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function extractPostcode(value?: string) {
+  const match = String(value || '').match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i);
+  return match ? normalizePostcode(match[0]) : undefined;
+}
+
+function normalizeLookupText(value?: string) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const PHARMACY_MATCH_STOP_WORDS = new Set([
+  'a',
+  'and',
+  'chemist',
+  'chemists',
+  'co',
+  'company',
+  'department',
+  'limited',
+  'ltd',
+  'pharmacy',
+  'pharmacies',
+  'plc',
+  'stores',
+  'store',
+  'the',
+  'uk',
+]);
+
+function lookupTokens(value?: string) {
+  return normalizeLookupText(value)
+    .split(' ')
+    .filter((token) => token.length > 2 && !PHARMACY_MATCH_STOP_WORDS.has(token));
+}
+
+function addressNumbers(value?: string) {
+  return new Set(String(value || '').match(/\d+[a-z]?/gi)?.map((number) => number.toLowerCase()) ?? []);
+}
+
 async function getSponsoredPartners(): Promise<SponsoredPartner[]> {
   try {
     const snap = await getDocs(query(collection(db, 'pharmacyPartners'), where('active', '==', true)));
@@ -118,6 +184,7 @@ async function getSponsoredPartners(): Promise<SponsoredPartner[]> {
           acceptsRefillRequests: data.acceptsRefillRequests !== false,
           responseWindowMinutes: Number(data.responseWindowMinutes || 60),
           services: normalizeServiceIds(data.services),
+          scotlandContractorCode: data.scotlandContractorCode ? String(data.scotlandContractorCode).trim() : undefined,
         };
       })
       .filter((partner): partner is SponsoredPartner => !!partner && partner.matcher.length > 0)
@@ -133,6 +200,180 @@ function getPartner(name: string, partners: SponsoredPartner[]) {
   return partners.find((entry) => normalized.includes(entry.matcher));
 }
 
+function numericValue(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function contractorCodeFromTags(tags: Record<string, string>) {
+  const raw =
+    tags['ref:nhs_scotland:contractor'] ||
+    tags['ref:nhs:contractor'] ||
+    tags['ref:nhs'] ||
+    tags.ref;
+  const match = String(raw || '').match(/\d{3,}/);
+  return match?.[0];
+}
+
+function escapeSqlString(value: string) {
+  return value.replace(/'/g, "''");
+}
+
+function selectNhsScotlandDispenserMatch(pharmacy: Pharmacy, candidates: NhsScotlandDispenserRecord[]) {
+  const postcode = normalizePostcode(pharmacy.postcode || pharmacy.address);
+  if (!postcode) return undefined;
+
+  const pharmacyNameTokens = new Set(lookupTokens(pharmacy.name));
+  const pharmacyAddressTokens = new Set(lookupTokens(pharmacy.address));
+  const pharmacyNumbers = addressNumbers(pharmacy.address);
+
+  let best: { record: NhsScotlandDispenserRecord; score: number } | undefined;
+
+  candidates.forEach((record) => {
+    if (normalizePostcode(record.DispLocationPostcode) !== postcode) return;
+
+    const candidateAddress = [
+      record.DispLocationAddress1,
+      record.DispLocationAddress2,
+      record.DispLocationAddress3,
+      record.DispLocationAddress4,
+    ]
+      .filter((part) => part && part !== 'NA')
+      .join(' ');
+    const candidateNameTokens = lookupTokens(record.DispLocationName);
+    const candidateAddressTokens = lookupTokens(candidateAddress);
+    const candidateNumbers = addressNumbers(candidateAddress);
+
+    let score = 50;
+    candidateNameTokens.forEach((token) => {
+      if (pharmacyNameTokens.has(token)) score += 16;
+    });
+    candidateAddressTokens.forEach((token) => {
+      if (pharmacyAddressTokens.has(token)) score += 5;
+    });
+    candidateNumbers.forEach((number) => {
+      if (pharmacyNumbers.has(number)) score += 14;
+    });
+
+    if (!best || score > best.score) best = { record, score };
+  });
+
+  return best && best.score >= 66 ? best.record : undefined;
+}
+
+function serviceIdsFromActivity(row: Record<string, unknown>): PharmacyServiceId[] {
+  const services = new Set<PharmacyServiceId>();
+
+  if (
+    numericValue(row.PFPayment) > 0 ||
+    numericValue(row.PFItems) > 0 ||
+    numericValue(row.PFConsultations) > 0 ||
+    numericValue(row.PFItemDispensed) > 0
+  ) {
+    services.add('pharmacy_first');
+  }
+  if (numericValue(row.MCRItems) > 0 || numericValue(row.MCRRegistrations) > 0 || numericValue(row.MCRPayment) > 0) {
+    services.add('medicines_care_review');
+  }
+  if (numericValue(row.EHCItems) > 0) services.add('emergency_contraception');
+  if (numericValue(row.SmokingCessationItems) > 0 || numericValue(row.SmokingCessationPayment) > 0) {
+    services.add('stop_smoking');
+  }
+  if (
+    numericValue(row.MethadoneDispensingFeeNumber) > 0 ||
+    numericValue(row.SupervisedDispensingFeeNumber) > 0 ||
+    numericValue(row.InstalmentDispensings) > 0
+  ) {
+    services.add('substance_misuse');
+  }
+
+  return [...services];
+}
+
+async function getNhsScotlandActivityServices(contractorCodes: string[]) {
+  const codes = [...new Set(contractorCodes.filter(Boolean))];
+  if (codes.length === 0) return new Map<string, PharmacyServiceId[]>();
+
+  try {
+    const quotedCodes = codes.map((code) => `'${escapeSqlString(code)}'`).join(',');
+    const sql = [
+      'SELECT *',
+      `FROM "${NHS_SCOTLAND_ACTIVITY_RESOURCE_ID}"`,
+      `WHERE CAST("Contractor" AS TEXT) IN (${quotedCodes})`,
+      'ORDER BY "PaidDateMonth" DESC',
+      `LIMIT ${Math.max(12, codes.length * 12)}`,
+    ].join(' ');
+
+    const response = await fetch(`${NHS_SCOTLAND_DATASTORE_SQL_URL}?sql=${encodeURIComponent(sql)}`);
+    if (!response.ok) throw new Error(`NHS Scotland activity lookup failed: ${response.status}`);
+
+    const json = await response.json();
+    const records = json?.result?.records;
+    if (!Array.isArray(records)) return new Map<string, PharmacyServiceId[]>();
+
+    const latestByContractor = new Map<string, Record<string, unknown>>();
+    records.forEach((record) => {
+      const code = String(record.Contractor || '').trim();
+      if (code && !latestByContractor.has(code)) latestByContractor.set(code, record);
+    });
+
+    const servicesByContractor = new Map<string, PharmacyServiceId[]>();
+    latestByContractor.forEach((record, code) => {
+      servicesByContractor.set(code, serviceIdsFromActivity(record));
+    });
+    return servicesByContractor;
+  } catch (e) {
+    console.warn('Unable to load NHS Scotland pharmacy activity', e);
+    return new Map<string, PharmacyServiceId[]>();
+  }
+}
+
+async function getNhsScotlandDispenserMatches(pharmacies: Pharmacy[]) {
+  const postcodeByPharmacy = new Map(
+    pharmacies
+      .map((pharmacy) => [pharmacy.id, normalizePostcode(pharmacy.postcode || pharmacy.address)] as const)
+      .filter(([, postcode]) => postcode.length > 0)
+  );
+  const postcodes = [...new Set([...postcodeByPharmacy.values()])];
+  if (postcodes.length === 0) return new Map<string, NhsScotlandDispenserRecord>();
+
+  try {
+    const quotedPostcodes = postcodes.map((postcode) => `'${escapeSqlString(postcode)}'`).join(',');
+    const sql = [
+      'SELECT *',
+      `FROM "${NHS_SCOTLAND_DISPENSER_RESOURCE_ID}"`,
+      `WHERE UPPER(REPLACE("DispLocationPostcode",' ','')) IN (${quotedPostcodes})`,
+      `LIMIT ${Math.max(25, postcodes.length * 6)}`,
+    ].join(' ');
+
+    const response = await fetch(`${NHS_SCOTLAND_DATASTORE_SQL_URL}?sql=${encodeURIComponent(sql)}`);
+    if (!response.ok) throw new Error(`NHS Scotland dispenser lookup failed: ${response.status}`);
+
+    const json = await response.json();
+    const records = json?.result?.records;
+    if (!Array.isArray(records)) return new Map<string, NhsScotlandDispenserRecord>();
+
+    const byPostcode = new Map<string, NhsScotlandDispenserRecord[]>();
+    records.forEach((record: NhsScotlandDispenserRecord) => {
+      const postcode = normalizePostcode(record.DispLocationPostcode);
+      if (!postcode) return;
+      byPostcode.set(postcode, [...(byPostcode.get(postcode) ?? []), record]);
+    });
+
+    const matches = new Map<string, NhsScotlandDispenserRecord>();
+    pharmacies.forEach((pharmacy) => {
+      const postcode = postcodeByPharmacy.get(pharmacy.id);
+      if (!postcode) return;
+      const match = selectNhsScotlandDispenserMatch(pharmacy, byPostcode.get(postcode) ?? []);
+      if (match) matches.set(pharmacy.id, match);
+    });
+    return matches;
+  } catch (e) {
+    console.warn('Unable to load NHS Scotland dispenser details', e);
+    return new Map<string, NhsScotlandDispenserRecord>();
+  }
+}
+
 function parsePharmacy(
   element: OverpassElement,
   origin: { latitude: number; longitude: number },
@@ -145,6 +386,9 @@ function parsePharmacy(
   const tags = element.tags ?? {};
   const name = tags.name || tags.brand || 'Pharmacy';
   const partner = getPartner(`${name} ${tags.brand ?? ''}`, partners);
+  const scotlandContractorCode = partner?.scotlandContractorCode ?? contractorCodeFromTags(tags);
+  const address = formatAddress(tags) || undefined;
+  const postcode = extractPostcode(tags['addr:postcode'] || address);
 
   return {
     id: `${element.type}-${element.id}`,
@@ -152,7 +396,7 @@ function parsePharmacy(
     latitude,
     longitude,
     distanceMiles: distanceMiles(origin, { latitude, longitude }),
-    address: formatAddress(tags) || undefined,
+    address,
     phone: tags.phone || tags['contact:phone'],
     openingHours: tags.opening_hours,
     sponsored: typeof partner?.tier === 'number',
@@ -161,6 +405,8 @@ function parsePharmacy(
     availabilityStatus: partner?.availabilityStatus,
     acceptsRefillRequests: partner?.acceptsRefillRequests,
     responseWindowMinutes: partner?.responseWindowMinutes,
+    scotlandContractorCode,
+    postcode,
     services: buildPharmacyServices({
       verified: partner?.services,
       osm: inferOsmServices(tags),
@@ -191,9 +437,36 @@ export async function findNearbyPharmacies(
   if (!res.ok) throw new Error(`Pharmacy search failed: HTTP ${res.status}`);
 
   const json = await res.json();
-  const pharmacies = ((json.elements ?? []) as OverpassElement[])
+  const parsedPharmacies = ((json.elements ?? []) as OverpassElement[])
     .map((element) => parsePharmacy(element, location, partners))
-    .filter((pharmacy): pharmacy is Pharmacy => !!pharmacy)
+    .filter((pharmacy): pharmacy is Pharmacy => !!pharmacy);
+
+  const dispenserMatches = await getNhsScotlandDispenserMatches(parsedPharmacies);
+  const pharmaciesWithContractors = parsedPharmacies.map((pharmacy) => {
+    const dispenser = dispenserMatches.get(pharmacy.id);
+    const contractorCode = pharmacy.scotlandContractorCode || (dispenser?.DispCode ? String(dispenser.DispCode).trim() : undefined);
+    return {
+      ...pharmacy,
+      scotlandContractorCode: contractorCode,
+      phone: pharmacy.phone || dispenser?.DispLocationTelNo,
+    };
+  });
+
+  const activityServices = await getNhsScotlandActivityServices(
+    pharmaciesWithContractors.map((pharmacy) => pharmacy.scotlandContractorCode).filter((code): code is string => !!code)
+  );
+
+  const pharmacies = pharmaciesWithContractors
+    .map((pharmacy) => ({
+      ...pharmacy,
+      services: buildPharmacyServices({
+        verified: pharmacy.services?.filter((service) => service.source === 'verified').map((service) => service.id),
+        osm: pharmacy.services?.filter((service) => service.source === 'osm').map((service) => service.id),
+        nhsScotlandActivity: pharmacy.scotlandContractorCode
+          ? activityServices.get(pharmacy.scotlandContractorCode)
+          : undefined,
+      }),
+    }))
     .sort((a, b) => {
       const tierA = a.partnerTier ?? Number.MAX_SAFE_INTEGER;
       const tierB = b.partnerTier ?? Number.MAX_SAFE_INTEGER;

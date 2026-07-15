@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -67,6 +67,20 @@ export type HomeTabParamList = {
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<HomeTabParamList>();
 
+function HeaderBackButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      hitSlop={{ top: 12, right: 16, bottom: 12, left: 16 }}
+      onPress={onPress}
+      style={navStyles.headerBackButton}
+    >
+      <Text style={navStyles.headerBackText}>‹ Back</Text>
+    </Pressable>
+  );
+}
+
 /* -------------------- Tabs -------------------- */
 function HomeTab() {
   return (
@@ -108,7 +122,13 @@ function HomeTab() {
 /* -------------------- Root stack -------------------- */
 export default function MainNavigator() {
   return (
-    <RootStack.Navigator>
+    <RootStack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerBackVisible: false,
+        headerLeft: () =>
+          navigation.canGoBack() ? <HeaderBackButton onPress={() => navigation.goBack()} /> : null,
+      })}
+    >
       <RootStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
       <RootStack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
       <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
@@ -134,8 +154,22 @@ export default function MainNavigator() {
       <RootStack.Screen
         name="CarePatient"
         component={CarePatientScreen}
-        options={{ headerBackTitle: 'Back' }}
+        options={{ headerBackVisible: false }}
       />
     </RootStack.Navigator>
   );
 }
+
+const navStyles = StyleSheet.create({
+  headerBackButton: {
+    minHeight: 44,
+    minWidth: 72,
+    justifyContent: 'center',
+    paddingRight: 8,
+  },
+  headerBackText: {
+    color: '#0A84FF',
+    fontSize: 17,
+    fontWeight: '500',
+  },
+});

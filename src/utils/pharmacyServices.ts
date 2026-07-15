@@ -1,4 +1,4 @@
-export type PharmacyServiceSource = 'verified' | 'osm' | 'nhs_general';
+export type PharmacyServiceSource = 'verified' | 'osm' | 'nhs_scotland_activity';
 
 export type PharmacyServiceId =
   | 'prescription_refill'
@@ -9,6 +9,7 @@ export type PharmacyServiceId =
   | 'flu_vaccine'
   | 'covid_tests'
   | 'new_medicine_service'
+  | 'medicines_care_review'
   | 'medicine_disposal'
   | 'weight_management'
   | 'stop_smoking'
@@ -35,6 +36,7 @@ export const PHARMACY_SERVICE_META: Record<PharmacyServiceId, { label: string; i
   flu_vaccine: { label: 'Flu vaccine', icon: 'Flu' },
   covid_tests: { label: 'COVID tests', icon: 'Test' },
   new_medicine_service: { label: 'New Medicine Service', icon: 'NMS' },
+  medicines_care_review: { label: 'Medicines Care Review', icon: 'MCR' },
   medicine_disposal: { label: 'Medicine disposal', icon: 'Bin' },
   weight_management: { label: 'Weight management', icon: 'Wt' },
   stop_smoking: { label: 'Stop smoking', icon: 'Quit' },
@@ -45,18 +47,6 @@ export const PHARMACY_SERVICE_META: Record<PharmacyServiceId, { label: string; i
   wheelchair_access: { label: 'Wheelchair access', icon: 'Acc' },
   private_consultations: { label: 'Private consultations', icon: 'Room' },
 };
-
-const NHS_GENERAL_SERVICES: PharmacyServiceId[] = [
-  'pharmacy_first',
-  'prescription_refill',
-  'medicine_disposal',
-  'new_medicine_service',
-  'emergency_contraception',
-  'blood_pressure',
-  'contraceptive_pill',
-  'weight_management',
-  'stop_smoking',
-];
 
 const SERVICE_ALIASES: Record<string, PharmacyServiceId> = {
   refill: 'prescription_refill',
@@ -76,6 +66,9 @@ const SERVICE_ALIASES: Record<string, PharmacyServiceId> = {
   lateral_flow: 'covid_tests',
   nms: 'new_medicine_service',
   new_medicine_service: 'new_medicine_service',
+  mcr: 'medicines_care_review',
+  medicines_care_review: 'medicines_care_review',
+  medicines_care_and_review: 'medicines_care_review',
   medicine_disposal: 'medicine_disposal',
   disposal: 'medicine_disposal',
   weight_management: 'weight_management',
@@ -132,18 +125,15 @@ export function inferOsmServices(tags: Record<string, string>): PharmacyServiceI
 export function buildPharmacyServices({
   verified,
   osm,
-  includeGeneral = true,
+  nhsScotlandActivity,
 }: {
   verified?: PharmacyServiceId[];
   osm?: PharmacyServiceId[];
-  includeGeneral?: boolean;
+  nhsScotlandActivity?: PharmacyServiceId[];
 }) {
   const services = new Map<PharmacyServiceId, PharmacyService>();
 
-  if (includeGeneral) {
-    NHS_GENERAL_SERVICES.forEach((id) => services.set(id, makeService(id, 'nhs_general')));
-  }
-
+  nhsScotlandActivity?.forEach((id) => services.set(id, makeService(id, 'nhs_scotland_activity')));
   osm?.forEach((id) => services.set(id, makeService(id, 'osm')));
   verified?.forEach((id) => services.set(id, makeService(id, 'verified')));
 

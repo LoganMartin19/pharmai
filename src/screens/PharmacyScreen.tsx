@@ -5,6 +5,7 @@ import {
   FlatList,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,10 +16,27 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeLayout from '../components/SafeLayout';
 import type { RootStackParamList } from '../navigation/MainNavigator';
 import { findNearbyPharmacies, Pharmacy } from '../utils/pharmacySearch';
+import { PHARMACY_SERVICE_META, PharmacyServiceId } from '../utils/pharmacyServices';
 import type { PharmacyService } from '../utils/pharmacyServices';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Coords = { latitude: number; longitude: number };
+type FilterId = 'all' | 'partner' | PharmacyServiceId;
+
+const SERVICE_FILTER_ORDER: PharmacyServiceId[] = [
+  'pharmacy_first',
+  'medicines_care_review',
+  'emergency_contraception',
+  'stop_smoking',
+  'substance_misuse',
+  'delivery',
+  'wheelchair_access',
+  'blood_pressure',
+  'flu_vaccine',
+  'contraceptive_pill',
+  'weight_management',
+  'private_consultations',
+];
 
 function getCurrentLocation(): Promise<Coords> {
   return new Promise((resolve, reject) => {
@@ -49,20 +67,48 @@ function formatAvailability(status?: Pharmacy['availabilityStatus']) {
 
 function serviceSourceLabel(service: PharmacyService) {
   if (service.source === 'verified') return 'Verified';
+  if (service.source === 'nhs_scotland_activity') return 'NHS Scotland';
   if (service.source === 'osm') return 'Listed';
-  return 'May offer';
+  return 'Listed';
 }
 
 function ServiceChip({ service }: { service: PharmacyService }) {
   const verified = service.source === 'verified';
+  const nhsScotland = service.source === 'nhs_scotland_activity';
   return (
-    <View style={[styles.serviceChip, verified && styles.serviceChipVerified]}>
-      <Text style={[styles.serviceIcon, verified && styles.serviceIconVerified]}>{service.icon}</Text>
-      <Text style={[styles.serviceLabel, verified && styles.serviceLabelVerified]}>{service.label}</Text>
-      <Text style={[styles.serviceSource, verified && styles.serviceSourceVerified]}>
+    <View style={[styles.serviceChip, verified && styles.serviceChipVerified, nhsScotland && styles.serviceChipNhs]}>
+      <Text style={[styles.serviceIcon, verified && styles.serviceIconVerified, nhsScotland && styles.serviceIconNhs]}>{service.icon}</Text>
+      <Text style={[styles.serviceLabel, verified && styles.serviceLabelVerified, nhsScotland && styles.serviceLabelNhs]}>{service.label}</Text>
+      <Text style={[styles.serviceSource, verified && styles.serviceSourceVerified, nhsScotland && styles.serviceSourceNhs]}>
         {serviceSourceLabel(service)}
       </Text>
     </View>
+  );
+}
+
+function FilterChip({
+  active,
+  disabled,
+  label,
+  count,
+  onPress,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  label: string;
+  count?: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.filterChip, active && styles.filterChipActive, disabled && styles.filterChipDisabled]}
+    >
+      <Text style={[styles.filterText, active && styles.filterTextActive, disabled && styles.filterTextDisabled]}>
+        {count !== undefined ? `${label} (${count})` : label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -71,10 +117,31 @@ export default function PharmacyScreen() {
   const [location, setLocation] = useState<Coords | null>(null);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+
+  const partnerCount = pharmacies.filter((pharmacy) => pharmacy.sponsored).length;
+  const serviceCounts = pharmacies.reduce((counts, pharmacy) => {
+    pharmacy.services?.forEach((service) => {
+      counts.set(service.id, (counts.get(service.id) ?? 0) + 1);
+    });
+    return counts;
+  }, new Map<PharmacyServiceId, number>());
+  const serviceFilters = SERVICE_FILTER_ORDER
+    .filter((id) => serviceCounts.has(id))
+    .map((id) => ({ id, count: serviceCounts.get(id) ?? 0, label: PHARMACY_SERVICE_META[id].label }));
+  serviceCounts.forEach((count, id) => {
+    if (!SERVICE_FILTER_ORDER.includes(id)) serviceFilters.push({ id, count, label: PHARMACY_SERVICE_META[id].label });
+  });
+  const filteredPharmacies = pharmacies.filter((pharmacy) => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'partner') return !!pharmacy.sponsored;
+    return !!pharmacy.services?.some((service) => service.id === activeFilter);
+  });
 
   const loadNearby = async () => {
     try {
       setLoading(true);
+      setActiveFilter('all');
       const coords = await getCurrentLocation();
       setLocation(coords);
       const rows = await findNearbyPharmacies(coords);
@@ -99,21 +166,21 @@ export default function PharmacyScreen() {
   return (
     <SafeLayout>
       <FlatList
-        data={pharmacies}
+        data={filteredPharmacies}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 28 }}
         ListHeaderComponent={
           <View>
             <Text style={styles.title}>Pharmacies</Text>
             <Text style={styles.subtitle}>
-              Find nearby pharmacies and see services they may provide.
+              Find nearby pharmacies and see services listed by public data or verified partner profiles.
             </Text>
 
             <View style={styles.hero}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.heroTitle}>Services at a glance</Text>
                 <Text style={styles.heroText}>
-                  Partner pharmacies can verify services. Other chips are based on NHS general pharmacy services or public location data.
+                  NHS Scotland activity appears when a contractor code can be matched. Partner pharmacies can verify services directly.
                 </Text>
               </View>
               <Pressable style={styles.locationButton} disabled={loading} onPress={loadNearby}>
@@ -123,9 +190,40 @@ export default function PharmacyScreen() {
 
             <View style={styles.legendRow}>
               <Text style={styles.legendVerified}>Verified</Text>
+              <Text style={styles.legendNhs}>NHS Scotland</Text>
               <Text style={styles.legendListed}>Listed</Text>
-              <Text style={styles.legendMay}>May offer</Text>
             </View>
+
+            {pharmacies.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterRow}
+              >
+                <FilterChip
+                  label="All"
+                  count={pharmacies.length}
+                  active={activeFilter === 'all'}
+                  onPress={() => setActiveFilter('all')}
+                />
+                <FilterChip
+                  label="Partners"
+                  count={partnerCount}
+                  active={activeFilter === 'partner'}
+                  disabled={partnerCount === 0}
+                  onPress={() => setActiveFilter('partner')}
+                />
+                {serviceFilters.map((filter) => (
+                  <FilterChip
+                    key={filter.id}
+                    label={filter.label}
+                    count={filter.count}
+                    active={activeFilter === filter.id}
+                    onPress={() => setActiveFilter(filter.id)}
+                  />
+                ))}
+              </ScrollView>
+            ) : null}
 
             {location ? (
               <Text style={styles.disclosure}>Partner pharmacies are prioritised where available.</Text>
@@ -166,9 +264,13 @@ export default function PharmacyScreen() {
               </Pressable>
 
               <View style={styles.servicesWrap}>
-                {services.slice(0, 10).map((service) => (
-                  <ServiceChip key={`${service.id}-${service.source}`} service={service} />
-                ))}
+                {services.length > 0 ? (
+                  services.slice(0, 10).map((service) => (
+                    <ServiceChip key={`${service.id}-${service.source}`} service={service} />
+                  ))
+                ) : (
+                  <Text style={styles.noServicesText}>No specific services listed yet.</Text>
+                )}
               </View>
 
               <View style={styles.actions}>
@@ -185,11 +287,11 @@ export default function PharmacyScreen() {
             </View>
           );
         }}
-        ListEmptyComponent={
-          location && !loading ? (
-            <Text style={styles.emptyText}>No pharmacy results loaded.</Text>
-          ) : null
-        }
+        ListEmptyComponent={location && !loading ? (
+          <Text style={styles.emptyText}>
+            {pharmacies.length > 0 ? 'No pharmacies match this filter yet.' : 'No pharmacy results loaded.'}
+          </Text>
+        ) : null}
       />
     </SafeLayout>
   );
@@ -222,6 +324,22 @@ const styles = StyleSheet.create({
   },
   locationButtonText: { color: '#fff', fontWeight: '800' },
   legendRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  filterRow: { gap: 8, paddingBottom: 10 },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#fff',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  filterChipActive: { borderColor: '#0A84FF', backgroundColor: '#E8F0FF' },
+  filterChipDisabled: { opacity: 0.45 },
+  filterText: { color: '#374151', fontWeight: '800', fontSize: 12 },
+  filterTextActive: { color: '#0A53B8' },
+  filterTextDisabled: { color: '#6B7280' },
   legendVerified: {
     color: '#17633A',
     backgroundColor: '#E7F5EC',
@@ -240,9 +358,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  legendMay: {
-    color: '#6B4E16',
-    backgroundColor: '#FFF5D6',
+  legendNhs: {
+    color: '#174E63',
+    backgroundColor: '#E6F7FB',
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -295,12 +413,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   serviceChipVerified: { borderColor: '#BFE4CB', backgroundColor: '#EEF9F1' },
+  serviceChipNhs: { borderColor: '#B7E4EF', backgroundColor: '#EDFBFE' },
   serviceIcon: { color: '#7A5A12', fontSize: 11, fontWeight: '900' },
   serviceIconVerified: { color: '#17633A' },
+  serviceIconNhs: { color: '#17607A' },
   serviceLabel: { color: '#3F3215', fontSize: 12, fontWeight: '800' },
   serviceLabelVerified: { color: '#143D2A' },
+  serviceLabelNhs: { color: '#123B4C' },
   serviceSource: { color: '#7A5A12', fontSize: 10, fontWeight: '700' },
   serviceSourceVerified: { color: '#17633A' },
+  serviceSourceNhs: { color: '#17607A' },
+  noServicesText: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   secondaryButton: {
     flex: 1,
