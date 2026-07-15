@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseMedicationText } from './medParser';
+import { medicineNameToNhsSlug } from '../api/nhsContent';
 
 export type MedicineSuggestion = {
   name: string;
   source: 'NHS Scotland Open Data' | 'Local cache';
+  nhsSlug: string;
 };
 
 const NHS_SCOTLAND_RESOURCE_ID = '699a7c07-f514-4b56-804a-3a2dcf282f96';
@@ -71,7 +73,7 @@ function localMatches(query: string) {
   return SEED_MEDICINES
     .filter((name) => normalize(name).startsWith(normalizedQuery))
     .slice(0, 8)
-    .map((name) => ({ name, source: 'Local cache' as const }));
+    .map((name) => ({ name, source: 'Local cache' as const, nhsSlug: medicineNameToNhsSlug(name) }));
 }
 
 async function readCache(cacheKey: string) {
@@ -82,7 +84,7 @@ async function readCache(cacheKey: string) {
     if (!Array.isArray(names)) return [];
     return names
       .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
-      .map((name) => ({ name, source: 'NHS Scotland Open Data' as const }));
+      .map((name) => ({ name, source: 'NHS Scotland Open Data' as const, nhsSlug: medicineNameToNhsSlug(name) }));
   } catch {
     return [];
   }
@@ -137,7 +139,7 @@ export async function searchMedicineNames(query: string): Promise<MedicineSugges
     const remoteNames = await fetchNhsScotlandMatches(query);
     await writeCache(cacheKey, remoteNames);
 
-    const remote = remoteNames.map((name) => ({ name, source: 'NHS Scotland Open Data' as const }));
+    const remote = remoteNames.map((name) => ({ name, source: 'NHS Scotland Open Data' as const, nhsSlug: medicineNameToNhsSlug(name) }));
     return mergeSuggestions(remote, local);
   } catch {
     return mergeSuggestions(cached, local);

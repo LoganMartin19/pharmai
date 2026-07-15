@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeLayout from '../components/SafeLayout';
 import type { RootStackParamList } from '../navigation/MainNavigator';
 import { MedicineSuggestion, isRecognisedMedicineName, searchMedicineNames } from '../utils/medicineDirectory';
+import MedicationSafetyCard from '../components/MedicationSafetyCard';
 
 type Route = RouteProp<RootStackParamList, 'ScanReview'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ScanReview'>;
@@ -18,6 +19,7 @@ export default function ScanReviewScreen() {
   const { parsed, rawText } = route.params;
 
   const [name, setName] = useState(parsed.name ?? '');
+  const [nhsSlug, setNhsSlug] = useState(parsed.nhsSlug);
   const [dosage, setDosage] = useState(parsed.dosage ?? '1 tablet');
   const [frequency, setFrequency] = useState<Frequency>((parsed.frequency as Frequency) ?? 'Once daily');
   const [suggestions, setSuggestions] = useState<MedicineSuggestion[]>([]);
@@ -65,6 +67,7 @@ export default function ScanReviewScreen() {
     navigation.navigate('AddReminder', {
       prefill: {
         name: name.trim(),
+        nhsSlug,
         dosage: dosage.trim() || '1 tablet',
         frequency,
       },
@@ -83,6 +86,7 @@ export default function ScanReviewScreen() {
           onFocus={() => setShowSuggestions(true)}
           onChangeText={(value) => {
             setName(value);
+            setNhsSlug(undefined);
             setShowSuggestions(true);
           }}
           placeholder="e.g. Amoxicillin"
@@ -96,6 +100,7 @@ export default function ScanReviewScreen() {
                 style={styles.suggestionItem}
                 onPress={() => {
                   setName(suggestion.name);
+                  setNhsSlug(suggestion.nhsSlug);
                   setShowSuggestions(false);
                 }}
               >
@@ -126,6 +131,15 @@ export default function ScanReviewScreen() {
         <View style={styles.rawBox}>
           <Text style={styles.rawText}>{rawText || 'No OCR text available.'}</Text>
         </View>
+
+        {name.trim().length >= 2 && (
+          <View style={styles.infoPreview}>
+            <MedicationSafetyCard
+              showLocalSafety={false}
+              medication={{ id: 'scan-preview', name: name.trim(), nhsSlug, dosage, frequency, history: [] }}
+            />
+          </View>
+        )}
 
         <Pressable style={[styles.primaryButton, checking && styles.primaryButtonDisabled]} disabled={checking} onPress={continueToReminder}>
           {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Continue</Text>}
@@ -185,6 +199,7 @@ const styles = StyleSheet.create({
     maxHeight: 220,
   },
   rawText: { color: '#4B5563', lineHeight: 20 },
+  infoPreview: { marginTop: 16 },
   primaryButton: {
     marginTop: 20,
     borderRadius: 10,

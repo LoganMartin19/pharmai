@@ -5,6 +5,8 @@ export type Medication = {
   id: string;
   name: string;
   dosage: string;
+  /** NHS Website Content API medicine page slug, when matched. */
+  nhsSlug?: string;
 
   /**
    * CSV of times for legacy UI input, e.g. "08:00, 20:00".

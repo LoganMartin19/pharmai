@@ -14,13 +14,182 @@ const corsHandler = cors({ origin: true });
 setGlobalOptions({
   timeoutSeconds: 60,
   memory: "512MiB",
-  secrets: ["OPENAI_API_KEY"], // <-- ensure this secret exists
+  secrets: ["OPENAI_API_KEY"],
+});
+
+const NHS_CONTENT_BASE_URLS = {
+  integration: "https://int.api.service.nhs.uk/nhs-website-content/",
+  production: "https://api.service.nhs.uk/nhs-website-content/",
+  sandbox: "https://sandbox.api.service.nhs.uk/nhs-website-content/",
+};
+
+const NHS_CONTENT_ROOTS = new Set([
+  "baby",
+  "conditions",
+  "contraception",
+  "health-a-to-z",
+  "live-well",
+  "manifest",
+  "medicines",
+  "mental-health",
+  "nhs-services",
+  "pregnancy",
+  "social-care-and-support",
+  "symptoms",
+  "tests-and-treatments",
+  "vaccinations",
+  "womens-health",
+]);
+
+function getNhsContentBaseUrl() {
+  const environment = (process.env.NHS_API_ENVIRONMENT || "production").toLowerCase();
+  const baseUrl = NHS_CONTENT_BASE_URLS[environment];
+  if (!baseUrl) throw new Error(`Unsupported NHS_API_ENVIRONMENT: ${environment}`);
+  return { baseUrl, environment };
+}
+
+function normaliseNhsContentPath(input) {
+  const path = String(input || "").trim().replace(/^\/+|\/+$/g, "");
+  const root = path.split("/")[0];
+  if (!path || !NHS_CONTENT_ROOTS.has(root) || path.includes("..")) return null;
+  if (!/^[a-z0-9][a-z0-9\-/]*$/i.test(path)) return null;
+  return `${path}/`;
+}
+
+async function requireFirebaseUser(req) {
+  const authHeader = req.headers.authorization || "";
+  const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!idToken) return null;
+  return admin.auth().verifyIdToken(idToken);
+}
+
+function collectNhsText(value, output = [], depth = 0) {
+  if (depth > 8 || output.join("\n").length > 24000 || value == null) return output;
+  if (typeof value === "string") {
+    const text = value
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\s*\/\s*(p|li|h[1-6])\s*>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "- ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length > 2) output.push(text);
+    return output;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectNhsText(item, output, depth + 1));
+    return output;
+  }
+  if (typeof value === "object") {
+    ["name", "description", "healthAspect", "text", "hasPart", "mainEntityOfPage"].forEach((key) => {
+      if (key in value) collectNhsText(value[key], output, depth + 1);
+    });
+  }
+  return output;
+}
+
+async function getNhsMedicineGrounding(client, messages) {
+  if (!process.env.NHS_API_KEY) return null;
+  const recentText = messages
+    .slice(-4)
+    .map((message) => `${message.role}: ${String(message.content || "")}`)
+    .join("\n")
+    .slice(0, 6000);
+  if (!recentText) return null;
+
+  const classification = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "Identify the single medicine the user is asking about. Return JSON only as " +
+          "{\"medicine\": string|null, \"slug\": string|null}. The slug must be the lowercase NHS.uk generic " +
+          "medicine name with words joined by hyphens. Do not infer a medicine if none is named or unambiguously present in context.",
+      },
+      { role: "user", content: recentText },
+    ],
+  });
+
+  let parsed;
+  try {
+    parsed = JSON.parse(classification.choices?.[0]?.message?.content || "{}");
+  } catch {
+    return null;
+  }
+  const path = normaliseNhsContentPath(`medicines/${parsed.slug || ""}`);
+  if (!parsed.medicine || !path || path === "medicines/") return null;
+
+  const { baseUrl, environment } = getNhsContentBaseUrl();
+  const url = new URL(path, baseUrl);
+  url.searchParams.set("modules", "true");
+  const upstream = await fetch(url, {
+    headers: { Accept: "application/json", apikey: process.env.NHS_API_KEY },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!upstream.ok) {
+    console.warn("No NHS medicine grounding found:", upstream.status, { path, environment });
+    return null;
+  }
+  const content = await upstream.json();
+  const sourceUrl = typeof content?.url === "string" ? content.url : null;
+  const text = [...new Set(collectNhsText(content))].join("\n").slice(0, 24000);
+  return text ? { medicine: parsed.medicine, sourceUrl, text } : null;
+}
+
+/* =======================================================================================
+ * NHS Website Content API v2
+ * ======================================================================================= */
+exports.nhsContent = onRequest({ secrets: ["NHS_API_KEY"] }, (req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "GET") return res.status(405).send("Method Not Allowed");
+
+      const user = await requireFirebaseUser(req);
+      if (!user) return res.status(401).json({ error: "unauthorized" });
+
+      const path = normaliseNhsContentPath(req.query.path);
+      if (!path) return res.status(400).json({ error: "invalid_nhs_content_path" });
+
+      const { baseUrl, environment } = getNhsContentBaseUrl();
+      const url = new URL(path, baseUrl);
+      for (const [key, value] of Object.entries(req.query)) {
+        if (key === "path" || key.toLowerCase() === "apikey") continue;
+        const values = Array.isArray(value) ? value : [value];
+        values.forEach((item) => url.searchParams.append(key, String(item)));
+      }
+
+      const headers = { Accept: "application/json" };
+      if (environment !== "sandbox") {
+        if (!process.env.NHS_API_KEY) throw new Error("NHS_API_KEY is not configured");
+        headers.apikey = process.env.NHS_API_KEY;
+      }
+
+      const upstream = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+      const body = await upstream.json().catch(() => null);
+      if (!upstream.ok) {
+        console.error("NHS Content API error:", upstream.status, { path, environment });
+        return res.status(upstream.status).json({ error: "nhs_content_error" });
+      }
+
+      res.set("Cache-Control", "private, max-age=300");
+      return res.status(200).json(body);
+    } catch (err) {
+      console.error("NHS Content API request failed:", err);
+      const status = err?.code?.startsWith("auth/") ? 401 : 502;
+      return res.status(status).json({ error: "nhs_content_unavailable" });
+    }
+  });
 });
 
 /* =======================================================================================
  * Chat (unchanged)
  * ======================================================================================= */
-exports.chat = onRequest((req, res) => {
+exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, res) => {
   corsHandler(req, res, async () => {
     try {
       if (req.method !== "POST") {
@@ -40,29 +209,35 @@ exports.chat = onRequest((req, res) => {
         return res.status(400).json({ error: "invalid payload" });
       }
 
-      // 🧠 System prompt
-      const system = {
-        role: "system",
-        content:
-          "You are PharmAI, a friendly pharmacist assistant. Be concise and clear. " +
-          "Only provide medicine information that is grounded in the UK Electronic Medicines Compendium (EMC) or the British National Formulary (BNF). " +
-          "Do not use or reference any other medicine-information source. " +
-          "For every factual medicine statement you give the user, clearly label the source as [EMC], [BNF], or [EMC/BNF]. " +
-          "Include a short Sources section at the end of every medicine-information answer listing only the sites used: EMC and/or BNF. " +
-          "If you cannot answer from EMC or BNF, say you cannot confirm that from EMC or BNF and suggest checking with a pharmacist or doctor. " +
-          "Explain dosing, timing, interactions, side effects and when to seek help only when they can be attributed to EMC or BNF. " +
-          "NEVER diagnose or replace medical advice. " +
-          "If an answer requires a professional, say so and suggest contacting a pharmacist/doctor or emergency services when appropriate. " +
-          "Use short plain-language sections and bullet points when helpful, but do not use markdown heading syntax like ### or bold markers. " +
-          "Keep a reassuring, non-judgmental tone.",
-      };
-
       // 🧹 Keep only recent context
       const MAX_CONTEXT = 10;
       const trimmed = messages.slice(-MAX_CONTEXT);
 
       // Create OpenAI client with v2 secret
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      let nhsGrounding = null;
+      try {
+        nhsGrounding = await getNhsMedicineGrounding(client, trimmed);
+      } catch (error) {
+        console.warn("NHS grounding unavailable; continuing safely:", error?.message || error);
+      }
+
+      const system = {
+        role: "system",
+        content:
+          "You are PharmAI, a friendly UK pharmacist assistant. Be concise and clear. " +
+          "For medicine facts, use only the NHS WEBSITE CONTENT supplied below in this prompt. " +
+          "Label every factual statement supported by it as [NHS]. Never claim to have checked EMC or BNF because they are not supplied. " +
+          "If the supplied NHS content does not answer the question, clearly say you cannot confirm it from the available NHS content and advise checking the patient leaflet or a pharmacist. " +
+          "Do not invent side effects, doses, interactions, contraindications, frequencies, or urgency advice. " +
+          "Never diagnose or replace medical advice. Recommend 999/A&E only when the supplied NHS content supports emergency action; otherwise suggest NHS 111, a pharmacist, or a doctor as appropriate. " +
+          "Include a Sources section with the supplied NHS.uk source URL when one is available. " +
+          "Use short plain-language sections and bullets without markdown heading or bold syntax. Keep a reassuring, non-judgmental tone.\n\n" +
+          (nhsGrounding
+            ? `NHS WEBSITE CONTENT FOR ${nhsGrounding.medicine}\nSource: ${nhsGrounding.sourceUrl || "NHS.uk"}\n${nhsGrounding.text}`
+            : "NHS WEBSITE CONTENT: No matching NHS medicine page was retrieved for this conversation."),
+      };
 
       // 🧾 Call OpenAI
       const resp = await client.chat.completions.create({

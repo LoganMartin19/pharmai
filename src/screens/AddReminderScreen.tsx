@@ -94,6 +94,7 @@ export default function AddReminderScreen() {
   const [medicationName, setMedicationName] = useState(
     original?.name ?? (prefill.name ?? '')
   );
+  const [nhsSlug, setNhsSlug] = useState(original?.nhsSlug ?? prefill.nhsSlug);
   const [showMedicationSuggestions, setShowMedicationSuggestions] = useState(false);
   const [medicationSuggestions, setMedicationSuggestions] = useState<MedicineSuggestion[]>([]);
   const [selectedDosage, setSelectedDosage] = useState(() => {
@@ -217,6 +218,7 @@ export default function AddReminderScreen() {
     const payload: Medication = {
       id: editing ? original!.id : Date.now().toString(),   // keep the same id when editing
       name: medicationName.trim(),
+      nhsSlug,
       dosage: dosageForSave,
       frequency: selectedFrequency,
       time: times.join(', '),
@@ -264,6 +266,7 @@ export default function AddReminderScreen() {
           onFocus={() => setShowMedicationSuggestions(true)}
           onChangeText={(value) => {
             setMedicationName(value);
+            setNhsSlug(undefined);
             setShowMedicationSuggestions(true);
           }}
           style={styles.input}
@@ -276,6 +279,7 @@ export default function AddReminderScreen() {
                 style={styles.suggestionItem}
                 onPress={() => {
                   setMedicationName(suggestion.name);
+                  setNhsSlug(suggestion.nhsSlug);
                   setShowMedicationSuggestions(false);
                 }}
               >

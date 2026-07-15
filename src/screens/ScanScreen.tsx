@@ -91,6 +91,7 @@ export default function ScanScreen() {
         rawText: text,
         parsed: {
           name: recognisedMedicine.name,
+          nhsSlug: recognisedMedicine.nhsSlug,
           dosage: parsed.dosage ?? '1 tablet',
           frequency: (parsed.frequency as any) ?? 'Once daily',
         },

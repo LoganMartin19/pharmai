@@ -158,7 +158,7 @@ export default function ChatScreen() {
             messages.length === 0 ? (
               <View style={styles.historyWrap}>
                 <Text style={styles.title}>Medication chat</Text>
-                <Text style={styles.subtitle}>Ask about timing, side effects, interactions, or what to check with a pharmacist. Answers reference EMC and BNF.</Text>
+                <Text style={styles.subtitle}>Ask about timing, side effects, interactions, or what to check with a pharmacist. Medicine answers are grounded in retrieved NHS content.</Text>
                 {history.length ? (
                   <>
                     <Text style={styles.historyTitle}>Recent chats</Text>
