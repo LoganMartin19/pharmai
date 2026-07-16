@@ -20,6 +20,7 @@ export type Pharmacy = {
   sponsored?: boolean;
   partnerTier?: number;
   partnerId?: string;
+  partnerOrgId?: string;
   availabilityStatus?: 'available_now' | 'usually_available' | 'order_by_tomorrow' | 'call_to_confirm' | 'out_of_stock';
   acceptsRefillRequests?: boolean;
   responseWindowMinutes?: number;
@@ -56,6 +57,7 @@ type NhsScotlandDispenserRecord = {
 
 type SponsoredPartner = {
   id: string;
+  organisationId?: string;
   matcher: string;
   tier: number;
   availabilityStatus?: Pharmacy['availabilityStatus'];
@@ -178,6 +180,7 @@ async function getSponsoredPartners(): Promise<SponsoredPartner[]> {
 
         return {
           id: docSnap.id,
+          organisationId: data.organisationId ? String(data.organisationId) : undefined,
           matcher: String(data.matcher || data.name || '').trim().toLowerCase(),
           tier: Math.max(1, Number(data.tier || 1)),
           availabilityStatus,
@@ -402,6 +405,7 @@ function parsePharmacy(
     sponsored: typeof partner?.tier === 'number',
     partnerTier: partner?.tier,
     partnerId: partner?.id,
+    partnerOrgId: partner?.organisationId,
     availabilityStatus: partner?.availabilityStatus,
     acceptsRefillRequests: partner?.acceptsRefillRequests,
     responseWindowMinutes: partner?.responseWindowMinutes,

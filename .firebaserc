@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "pharmai-d45ab"
+    "default": "pharmai-d45ab",
+    "prod": "pharmai-d45ab",
+    "staging": "pharmai-staging-2026"
   }
 }

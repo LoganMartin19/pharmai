@@ -1,6 +1,7 @@
 // functions/index.js (Firebase Functions v2)
 const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const admin = require("firebase-admin");
 const cors = require("cors");
@@ -304,6 +305,239 @@ exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, r
     }
   });
 });
+
+/* =======================================================================================
+ * PharmAI internal administration
+ * ======================================================================================= */
+async function requireAdmin(req) {
+  const decoded = await requireFirebaseUser(req);
+  return decoded?.admin === true ? decoded : null;
+}
+
+async function countAuthUsers() {
+  let pageToken;
+  let count = 0;
+  do {
+    const page = await admin.auth().listUsers(1000, pageToken);
+    count += page.users.length;
+    pageToken = page.pageToken;
+  } while (pageToken);
+  return count;
+}
+
+exports.adminMetrics = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "GET") return res.status(405).send("Method Not Allowed");
+      const actor = await requireAdmin(req);
+      if (!actor) return res.status(403).json({ error: "admin_required" });
+
+      const [users, organisations, requests, openSupport] = await Promise.all([
+        countAuthUsers(),
+        db.collection("pharmacyOrganisations").count().get(),
+        db.collection("pharmacyRequests").count().get(),
+        db.collection("supportThreads").where("status", "in", ["open", "waiting_partner"]).count().get(),
+      ]);
+
+      await db.collection("auditEvents").add({
+        action: "admin.metrics.viewed",
+        actorUid: actor.uid,
+        actorEmail: actor.email || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return res.json({
+        users,
+        pharmacyOrganisations: organisations.data().count,
+        pharmacyRequests: requests.data().count,
+        openSupport: openSupport.data().count,
+      });
+    } catch (error) {
+      console.error("adminMetrics failed:", error);
+      return res.status(500).json({ error: "admin_metrics_failed" });
+    }
+  });
+});
+
+exports.adminProvisionPortal = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+      const actor = await requireAdmin(req);
+      if (!actor) return res.status(403).json({ error: "admin_required" });
+      const { action } = req.body || {};
+
+      if (action === "create_organisation") {
+        const name = String(req.body?.name || "").trim().slice(0, 120);
+        const primaryContactEmail = String(req.body?.primaryContactEmail || "").trim().toLowerCase().slice(0, 254);
+        if (!name || !primaryContactEmail.includes("@")) return res.status(400).json({ error: "invalid_organisation" });
+        const orgRef = db.collection("pharmacyOrganisations").doc();
+        await orgRef.set({ name, primaryContactEmail, status: "onboarding", branchCount: 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(), createdBy: actor.uid });
+        await db.collection("auditEvents").add({ action: "pharmacy.organisation_created", actorUid: actor.uid,
+          actorEmail: actor.email || null, pharmacyOrgId: orgRef.id,
+          createdAt: admin.firestore.FieldValue.serverTimestamp() });
+        return res.json({ ok: true, organisationId: orgRef.id });
+      }
+
+      if (action === "add_member") {
+        const organisationId = String(req.body?.organisationId || "");
+        const email = String(req.body?.email || "").trim().toLowerCase();
+        const role = String(req.body?.role || "pharmacy_staff");
+        if (!["org_admin", "branch_manager", "pharmacist", "pharmacy_staff", "support"].includes(role)) {
+          return res.status(400).json({ error: "invalid_role" });
+        }
+        const orgRef = db.collection("pharmacyOrganisations").doc(organisationId);
+        if (!(await orgRef.get()).exists) return res.status(404).json({ error: "organisation_not_found" });
+        const user = await admin.auth().getUserByEmail(email);
+        await orgRef.collection("members").doc(user.uid).set({ uid: user.uid, email,
+          displayName: user.displayName || email, role, active: true,
+          branchIds: Array.isArray(req.body?.branchIds) ? req.body.branchIds.slice(0, 50) : [],
+          createdAt: admin.firestore.FieldValue.serverTimestamp(), createdBy: actor.uid }, { merge: true });
+        await db.collection("auditEvents").add({ action: "pharmacy.member_added", actorUid: actor.uid,
+          actorEmail: actor.email || null, pharmacyOrgId: organisationId, subjectUid: user.uid, role,
+          createdAt: admin.firestore.FieldValue.serverTimestamp() });
+        return res.json({ ok: true, uid: user.uid });
+      }
+      return res.status(400).json({ error: "unsupported_action" });
+    } catch (error) {
+      console.error("adminProvisionPortal failed:", error);
+      const status = error?.code === "auth/user-not-found" ? 404 : 500;
+      return res.status(status).json({ error: status === 404 ? "user_not_found" : "provisioning_failed" });
+    }
+  });
+});
+
+async function requirePharmacyMember(uid, organisationId) {
+  if (!uid || !organisationId) return null;
+  const membership = await db.collection("pharmacyOrganisations").doc(organisationId)
+    .collection("members").doc(uid).get();
+  return membership.exists && membership.data()?.active === true ? membership.data() : null;
+}
+
+exports.pharmacyPortalAction = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+      const actor = await requireFirebaseUser(req);
+      if (!actor) return res.status(401).json({ error: "unauthorized" });
+      const organisationId = String(req.body?.organisationId || "");
+      const member = await requirePharmacyMember(actor.uid, organisationId);
+      if (!member) return res.status(403).json({ error: "pharmacy_membership_required" });
+
+      if (req.body?.action === "update_request_status") {
+        const allowed = ["accepted", "ready_later", "need_more_info", "out_of_stock", "completed", "rejected"];
+        const status = String(req.body?.status || "");
+        if (!allowed.includes(status)) return res.status(400).json({ error: "invalid_status" });
+        const requestRef = db.collection("pharmacyRequests").doc(String(req.body?.requestId || ""));
+        await db.runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(requestRef);
+          if (!snapshot.exists || snapshot.data()?.pharmacyOrgId !== organisationId) throw new Error("request_not_found");
+          const history = Array.isArray(snapshot.data()?.statusHistory) ? snapshot.data().statusHistory.slice(-99) : [];
+          transaction.update(requestRef, { status, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastPharmacyActionAt: admin.firestore.FieldValue.serverTimestamp(),
+            statusHistory: [...history, { status, actorUid: actor.uid, at: new Date().toISOString() }] });
+          transaction.set(db.collection("auditEvents").doc(), { action: "pharmacy.request_status_updated",
+            actorUid: actor.uid, actorEmail: actor.email || null, pharmacyOrgId: organisationId,
+            resourceType: "pharmacyRequest", resourceId: requestRef.id, status,
+            createdAt: admin.firestore.FieldValue.serverTimestamp() });
+        });
+        return res.json({ ok: true });
+      }
+
+      if (req.body?.action === "record_pickup") {
+        const shareRef = db.collection("pharmacyPatientShares").doc(String(req.body?.shareId || ""));
+        let pickupId;
+        await db.runTransaction(async (transaction) => {
+          const share = await transaction.get(shareRef);
+          const data = share.data();
+          const expiresAt = data?.expiresAt?.toDate?.();
+          if (!share.exists || data?.active !== true || data?.pharmacyOrgId !== organisationId
+            || !Array.isArray(data?.scopes) || !data.scopes.includes("pickup_confirmation")
+            || (expiresAt && expiresAt.getTime() <= Date.now())) throw new Error("active_pickup_consent_required");
+          const pickupRef = db.collection("prescriptionPickupEvents").doc();
+          pickupId = pickupRef.id;
+          transaction.set(pickupRef, { patientUid: data.patientUid, pharmacyOrgId: organisationId,
+            branchId: data.branchId || null, shareId: share.id, medicationName: data.medicationName || null,
+            source: "pharmacy_portal", pickedUpAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(), createdBy: actor.uid });
+          transaction.set(db.collection("auditEvents").doc(), { action: "prescription.pickup_recorded",
+            actorUid: actor.uid, actorEmail: actor.email || null, pharmacyOrgId: organisationId,
+            resourceType: "prescriptionPickupEvent", resourceId: pickupRef.id,
+            createdAt: admin.firestore.FieldValue.serverTimestamp() });
+        });
+        return res.json({ ok: true, pickupId });
+      }
+      return res.status(400).json({ error: "unsupported_action" });
+    } catch (error) {
+      console.error("pharmacyPortalAction failed:", error);
+      const known = ["request_not_found", "active_pickup_consent_required"];
+      const message = String(error?.message || "");
+      return res.status(known.includes(message) ? 409 : 500).json({ error: known.includes(message) ? message : "portal_action_failed" });
+    }
+  });
+});
+
+exports.syncPharmacyPatientShare = onDocumentWritten(
+  "patientPharmacyConsents/{consentId}",
+  async (event) => {
+    const consent = event.data?.after?.exists ? event.data.after.data() : null;
+    const consentId = event.params.consentId;
+    const shareRef = db.collection("pharmacyPatientShares").doc(consentId);
+    if (!consent?.active) {
+      await shareRef.set({ active: false, revokedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      return;
+    }
+
+    const scopes = Array.isArray(consent.scopes) ? consent.scopes : [];
+    const patientUid = consent.patientUid;
+    const medicationId = consent.medicationId;
+    if (!patientUid || !consent.pharmacyOrgId) return;
+
+    const [patientDoc, medicationDoc] = await Promise.all([
+      db.collection("users").doc(patientUid).get(),
+      medicationId
+        ? db.collection("users").doc(patientUid).collection("reminders").doc(medicationId).get()
+        : Promise.resolve(null),
+    ]);
+    const patient = patientDoc.data() || {};
+    const medication = medicationDoc?.exists ? medicationDoc.data() : null;
+
+    let adherenceSummary = null;
+    if (scopes.includes("adherence_summary") && medication) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const history = (Array.isArray(medication.history) ? medication.history : []).filter((row) => {
+        const date = new Date(`${row?.date}T00:00:00`);
+        return !Number.isNaN(date.getTime()) && date >= cutoff;
+      });
+      const doses = history.flatMap((row) => Array.isArray(row?.taken) ? row.taken : []);
+      const taken = doses.filter(Boolean).length;
+      adherenceSummary = {
+        windowDays: 30,
+        scheduledDoses: doses.length,
+        takenDoses: taken,
+        percentage: doses.length ? Math.round((taken / doses.length) * 100) : null,
+        calculatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+    }
+
+    await shareRef.set({
+      consentId,
+      active: true,
+      patientUid,
+      patientDisplayName: patient.displayName || patient.name || "Patient",
+      pharmacyOrgId: consent.pharmacyOrgId,
+      branchId: consent.branchId || null,
+      medicationId: medicationId || null,
+      medicationName: scopes.includes("medicine_identity") ? medication?.name || null : null,
+      scopes,
+      adherenceSummary,
+      expiresAt: consent.expiresAt || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+);
 
 /* =======================================================================================
  * Care invites (unchanged)

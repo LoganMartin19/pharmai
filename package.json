@@ -9,7 +9,8 @@
     "android": "expo run:android",
     "lint": "expo lint",
     "eas:ios": "npx eas-cli build --platform ios --profile production",
-    "eas:submit": "npx eas-cli submit --platform ios --latest"
+    "eas:submit": "npx eas-cli submit --platform ios --latest",
+    "test:rules": "PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH firebase emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\""
   },
   "dependencies": {
     "@notifee/react-native": "9.1.8",
@@ -48,6 +49,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@react-native-community/cli": "^19.1.1",
     "@types/react-native-vector-icons": "^6.4.18"
   }

@@ -6,6 +6,9 @@ node_modules/
 
 # Logs
 npm-debug.log*
+firebase-debug.log*
+firestore-debug.log*
+.firebase/
 yarn-debug.log*
 yarn-error.log*
 
@@ -13,6 +16,7 @@ yarn-error.log*
 ios/build/
 android/app/build/
 build/
+portal/dist/
 boost_1_76_0/
 
 # Xcode specific
@@ -29,6 +33,7 @@ ios/Pods/
 # Environment files
 .env
 .env.*
+!portal/.env.example
 
 # Metro
 .expo/

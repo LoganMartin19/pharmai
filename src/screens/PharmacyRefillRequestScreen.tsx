@@ -52,6 +52,8 @@ export default function PharmacyRefillRequestScreen() {
   const [note, setNote] = useState('');
   const [contact, setContact] = useState(auth.currentUser?.email ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const [sharePickup, setSharePickup] = useState(true);
+  const [shareAdherence, setShareAdherence] = useState(false);
 
   const selectedMed = useMemo(
     () => reminders.find((med) => med.id === selectedMedId),
@@ -81,6 +83,8 @@ export default function PharmacyRefillRequestScreen() {
       await addDoc(collection(db, 'pharmacyRequests'), {
         userUid: user.uid,
         pharmacyPartnerId: pharmacy.partnerId ?? null,
+        pharmacyOrgId: pharmacy.partnerOrgId ?? null,
+        requestType: 'prescription_collection_enquiry',
         userEmail: user.email ?? null,
         contact: contact.trim(),
         status: 'pending',
@@ -112,6 +116,25 @@ export default function PharmacyRefillRequestScreen() {
           acceptsRefillRequests: pharmacy.acceptsRefillRequests ?? null,
         },
       });
+
+      if (pharmacy.partnerOrgId && (sharePickup || shareAdherence)) {
+        const scopes = ['medicine_identity', 'service_messages'];
+        if (sharePickup) scopes.push('pickup_confirmation');
+        if (shareAdherence) scopes.push('adherence_summary');
+        await addDoc(collection(db, 'patientPharmacyConsents'), {
+          patientUid: user.uid,
+          pharmacyOrgId: pharmacy.partnerOrgId,
+          pharmacyPartnerId: pharmacy.partnerId ?? null,
+          branchId: pharmacy.id,
+          medicationId: selectedMed.id,
+          scopes,
+          active: true,
+          purpose: 'prescription_collection_and_support',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        });
+      }
 
       Alert.alert(
         'Request sent',
@@ -210,6 +233,21 @@ export default function PharmacyRefillRequestScreen() {
           style={[styles.input, styles.noteInput]}
         />
 
+        {pharmacy.partnerOrgId ? (
+          <View style={styles.consentCard}>
+            <Text style={styles.consentTitle}>Information sharing</Text>
+            <Text style={styles.noticeText}>Choose what this pharmacy can see for this medicine. You can revoke access later.</Text>
+            <Pressable style={styles.consentRow} onPress={() => setSharePickup((value) => !value)}>
+              <Text style={styles.checkbox}>{sharePickup ? '✓' : ''}</Text>
+              <View style={{ flex: 1 }}><Text style={styles.consentLabel}>Prescription pickup confirmation</Text><Text style={styles.muted}>Let this pharmacy record that you collected it.</Text></View>
+            </Pressable>
+            <Pressable style={styles.consentRow} onPress={() => setShareAdherence((value) => !value)}>
+              <Text style={styles.checkbox}>{shareAdherence ? '✓' : ''}</Text>
+              <View style={{ flex: 1 }}><Text style={styles.consentLabel}>30-day adherence summary</Text><Text style={styles.muted}>Optional. Shares a percentage only, never your dose-by-dose history.</Text></View>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Pressable
           onPress={submitRequest}
           disabled={submitting || reminders.length === 0}
@@ -224,6 +262,11 @@ export default function PharmacyRefillRequestScreen() {
 
 const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 14 },
+  consentCard: { borderWidth: 1, borderColor: '#B7DDCF', backgroundColor: '#F0FAF6', borderRadius: 10, padding: 14, marginTop: 16 },
+  consentTitle: { fontSize: 16, fontWeight: '800', color: '#145D46', marginBottom: 4 },
+  consentRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingTop: 13 },
+  checkbox: { width: 23, height: 23, borderWidth: 1, borderColor: '#168D65', borderRadius: 5, textAlign: 'center', lineHeight: 21, color: '#168D65', fontWeight: '900' },
+  consentLabel: { color: '#163D31', fontWeight: '800', marginBottom: 2 },
   pharmacyCard: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
