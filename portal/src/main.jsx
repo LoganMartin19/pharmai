@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { browserLocalPersistence, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { auth, db, functionsBaseUrl } from './firebase';
 import './styles.css';
@@ -23,13 +23,25 @@ function Login() {
     catch { setError('Sign-in failed. Use an authorised PharmAI partner or admin account.'); }
     finally { setBusy(false); }
   };
+  const resetPassword = async () => {
+    const address = email.trim();
+    if (!address) { setError('Enter your email address first, then select Forgot password.'); return; }
+    setBusy(true); setError('');
+    try {
+      await sendPasswordResetEmail(auth, address);
+      setError('Password setup email requested. Check your inbox and spam folder.');
+    } catch {
+      setError('Unable to request a password email right now. Contact PharmAI support.');
+    } finally { setBusy(false); }
+  };
   return <main className="login-shell"><section className="login-card">
     <div className="brand"><span className="brand-mark">P</span><span>PharmAI</span></div>
     <p className="eyebrow">SECURE WORKSPACE</p><h1>Partner portal</h1>
     <p className="muted">Manage patient requests, pharmacy services and partnership support.</p>
     <form onSubmit={submit}><label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email" /></label>
       <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password" /></label>
-      {error && <p className="error">{error}</p>}<button className="primary" disabled={busy}>{busy?'Signing in…':'Sign in securely'}</button></form>
+      {error && <p className="error">{error}</p>}<button className="primary" disabled={busy}>{busy?'Please wait…':'Sign in securely'}</button>
+      <button type="button" className="text-btn reset-password" onClick={resetPassword} disabled={busy}>Forgot password?</button></form>
     <p className="security-note">Authorised users only · Activity is audited · MFA required for live partners</p>
   </section></main>;
 }
