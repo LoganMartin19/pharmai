@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -26,6 +27,7 @@ import HealthNavigator from './HealthNavigator';
 import type { Medication } from '../types/Medication';
 import type { PillStyle } from '../types/PillStyle';
 import type { Pharmacy } from '../utils/pharmacySearch';
+import { colors, radius, shadow } from '../theme';
 
 /* -------------------- Types -------------------- */
 export type RootStackParamList = {
@@ -86,22 +88,14 @@ function HomeTab() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
-        const emoji =
-          route.name === 'Home' ? '🏠' :
-          route.name === 'Reminders' ? '📅' :
-          route.name === 'Refills' ? '🏥' :
-          route.name === 'Pharmacy' ? '💊' :
-          route.name === 'Chat' ? '💬' :
-          route.name === 'Settings' ? '⚙️' :
-          route.name === 'Health' ? '🩺' :
-          '❓';
+        const icon = route.name === 'Home' ? 'home' : route.name === 'Reminders' ? 'calendar' : route.name === 'Refills' ? 'repeat' : route.name === 'Pharmacy' ? 'medical' : route.name === 'Chat' ? 'chatbubble-ellipses' : route.name === 'Settings' ? 'person-circle' : 'heart';
         return {
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size ?? 20, color }}>{emoji}</Text>
-          ),
-          tabBarActiveTintColor: '#007aff',
-          tabBarInactiveTintColor: 'gray',
+          tabBarIcon: ({ color, size }) => <Ionicons name={icon} size={size ?? 22} color={color} />,
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: '#7A8B85',
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2 },
+          tabBarStyle: { position: 'absolute', left: 12, right: 12, bottom: 8, height: 68, paddingTop: 8, paddingBottom: 8, borderTopWidth: 0, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.card },
         };
       }}
     >

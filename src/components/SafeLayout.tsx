@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, SafeAreaView, ScrollView, ViewStyle } from 'react-native';
+import { colors, spacing } from '../theme';
 
 type Props = {
   children: React.ReactNode;
@@ -28,12 +29,12 @@ export default function SafeLayout({ children, style, scroll = false }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   container: {
     flexGrow: 1,
-    paddingTop: 24,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
   },
 });

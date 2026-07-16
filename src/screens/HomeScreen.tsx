@@ -22,6 +22,9 @@ import { auth, db } from '../firebase';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import HomeHealthHeader from '../components/HomeHealthHeader';
 import { doseCount, doseIcon, doseLabel, medicationTimes } from '../utils/doseSchedule';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Eyebrow, StatusPill } from '../components/Primitives';
+import { colors } from '../theme';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type TabNav = BottomTabNavigationProp<HomeTabParamList>;
@@ -89,10 +92,13 @@ export default function HomeScreen() {
     const times = medicationTimes(item);
 
     return (
-      <Pressable style={styles.card}>
-        <Text style={styles.medName}>{item.name}</Text>
-        <Text style={styles.instructions}>{item.instructions}</Text>
-        <Text style={styles.time}>⏰ {item.time}</Text>
+      <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={() => stackNav.navigate('MedicationTracker', { medication: item })}>
+        <View style={styles.medHeader}>
+          <View style={styles.medIcon}><Ionicons name="medical" size={20} color={colors.brand}/></View>
+          <View style={styles.medHeading}><Text style={styles.medName}>{item.name}</Text><Text style={styles.instructions}>{item.instructions}</Text></View>
+          <StatusPill label={takenArray.every(Boolean) ? 'Complete' : 'Today'} tone={takenArray.every(Boolean) ? 'brand' : 'blue'} />
+        </View>
+        <View style={styles.timeRow}><Ionicons name="time-outline" size={15} color={colors.inkMuted}/><Text style={styles.time}>{item.time}</Text></View>
 
         <View
           style={{
@@ -125,7 +131,7 @@ export default function HomeScreen() {
                     { fontSize: 14 },
                   ]}
                 >
-                  {takenArray[index] ? '✅' : doseIcon(times[index])}
+                    {takenArray[index] ? '✓' : doseIcon(times[index])}
                 </Text>
               </Pressable>
               <Text style={{ marginTop: 6, fontSize: 13, color: '#555' }}>
@@ -135,14 +141,7 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <Pressable
-          style={styles.trackerButton}
-          onPress={() =>
-            stackNav.navigate('MedicationTracker', { medication: item })
-          }
-        >
-          <Text style={styles.trackerButtonText}>📊 Tracker</Text>
-        </Pressable>
+        <View style={styles.trackerButton}><Text style={styles.trackerButtonText}>View medication</Text><Ionicons name="chevron-forward" size={16} color={colors.brand}/></View>
       </Pressable>
     );
   };
@@ -296,10 +295,9 @@ export default function HomeScreen() {
     <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.greeting}>
-            {`Hi ${user?.displayName ? user.displayName + ' ' : ''}👋`}
-          </Text>
-          <Text style={styles.subtitle}>Your Medications Today</Text>
+          <Eyebrow>Thursday · Your health</Eyebrow>
+          <Text style={styles.greeting}>{`Good evening${user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}`}</Text>
+          <Text style={styles.subtitle}>Stay on track, one dose at a time.</Text>
         </View>
         <Pressable
           onPress={() => stackNav.navigate('CareLink')}
@@ -310,7 +308,7 @@ export default function HomeScreen() {
             borderRadius: 10,
           }}
         >
-          <Text style={{ color: '#0A84FF', fontWeight: '800' }}>Care</Text>
+          <Ionicons name="people-outline" size={19} color={colors.brand}/>
         </Pressable>
       </View>
 
@@ -334,7 +332,7 @@ export default function HomeScreen() {
                 color: mode === val ? '#0A84FF' : '#111',
               }}
             >
-              {val === 'me' ? 'Me' : 'Care'}
+              {val === 'me' ? 'My day' : 'People I care for'}
             </Text>
           </Pressable>
         ))}
@@ -364,11 +362,7 @@ export default function HomeScreen() {
             style={styles.addButton}
             onPress={() => stackNav.navigate('Scan')}
           >
-            <Text
-              style={{ fontSize: 30, color: '#fff', lineHeight: 30, textAlign: 'center' }}
-            >
-              ＋
-            </Text>
+            <Ionicons name="add" size={30} color={colors.white}/>
           </Pressable>
         </>
       ) : loadingCare ? (
