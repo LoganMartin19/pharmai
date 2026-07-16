@@ -9,6 +9,8 @@ import ImageEditor from '@react-native-community/image-editor';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { parseMedicationText } from '../utils/medParser';
 import { findMedicineInText } from '../utils/medicineDirectory';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { colors, radius } from '../theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -125,7 +127,7 @@ export default function ScanScreen() {
       {/* Top controls */}
       <View style={styles.topBar}>
         <Pressable style={styles.flashBtn} onPress={() => setFlash(flash === 'off' ? 'on' : 'off')}>
-          <Text style={styles.flashText}>{flash === 'on' ? 'Flash On' : 'Flash Off'}</Text>
+          <Ionicons name={flash==='on'?'flash':'flash-off'} size={19} color={colors.white}/><Text style={styles.flashText}>{flash === 'on' ? 'On' : 'Off'}</Text>
         </Pressable>
       </View>
 
@@ -136,7 +138,7 @@ export default function ScanScreen() {
           disabled={working}
           onPress={captureAndRecognize}
         >
-          {working ? <ActivityIndicator /> : <Text style={styles.captureText}>Scan</Text>}
+          {working ? <ActivityIndicator color={colors.white}/> : <View style={styles.captureInner}><Ionicons name="scan" size={22} color={colors.white}/><Text style={styles.captureText}>Scan label</Text></View>}
         </Pressable>
         <Text style={styles.hint}>Center the label, good lighting, minimal glare</Text>
       </View>
@@ -153,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   flashBtn: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: 'rgba(0,0,0,0.55)',flexDirection:'row',gap:6,alignItems:'center'
   },
   flashText: { color: '#fff', fontSize: 13 },
   bottomBar: {
@@ -163,9 +165,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   capture: {
-    width: 120, height: 44, borderRadius: 22,
-    backgroundColor: '#0A84FF', alignItems: 'center', justifyContent: 'center',
+    minWidth: 150, height: 52, borderRadius: radius.pill,
+    backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center',
   },
   captureText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  captureInner:{flexDirection:'row',alignItems:'center',gap:8},
   hint: { marginTop: 8, color: '#fff', opacity: 0.85 },
 });

@@ -2,30 +2,35 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Linking } from 'react-native';
 import SafeLayout from '../components/SafeLayout';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Eyebrow } from '../components/Primitives';
+import { colors, radius, shadow, spacing, type } from '../theme';
 
 export default function HealthIntegrationsScreen() {
   return (
     <SafeLayout>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
-        <Text style={s.title}>Wearables & Health Data</Text>
+      <ScrollView contentContainerStyle={s.content}>
+        <Eyebrow>CONNECTED HEALTH</Eyebrow>
+        <Text style={s.title}>Wearables & health data</Text>
+        <Text style={s.subtitle}>Choose what to connect. PharmAI never shares this data without your permission.</Text>
 
         <View style={s.card}>
-          <Text style={s.cardTitle}>Apple Health (coming soon)</Text>
+          <View style={s.cardHeader}><View style={s.icon}><Ionicons name="heart-outline" size={22} color={colors.brandDark} /></View><Text style={s.cardTitle}>Apple Health</Text></View>
           <Text style={s.muted}>
             Sync cycle logs and heart‑rate trends from Apple Health to improve predictions.
           </Text>
-          <Pressable style={[s.btn, s.btnDisabled]}>
-            <Text style={s.btnText}>Connect Apple Health</Text>
+          <Pressable disabled style={[s.btn, s.btnDisabled]}>
+            <Text style={s.btnText}>Coming soon</Text>
           </Pressable>
         </View>
 
         <View style={s.card}>
-          <Text style={s.cardTitle}>Garmin (coming soon)</Text>
+          <View style={s.cardHeader}><View style={s.icon}><Ionicons name="watch-outline" size={22} color={colors.brandDark} /></View><Text style={s.cardTitle}>Garmin</Text></View>
           <Text style={s.muted}>
             Pull sleep and HRV insights from Garmin Connect to refine symptom forecasts.
           </Text>
-          <Pressable style={[s.btn, s.btnDisabled]}>
-            <Text style={s.btnText}>Connect Garmin</Text>
+          <Pressable disabled style={[s.btn, s.btnDisabled]}>
+            <Text style={s.btnText}>Coming soon</Text>
           </Pressable>
         </View>
 
@@ -36,10 +41,10 @@ export default function HealthIntegrationsScreen() {
             likely heavier days in advance.
           </Text>
           <Pressable
-            style={[s.btn, { backgroundColor: '#E8F0FF' }]}
+            style={[s.btn, s.learnBtn]}
             onPress={() => Linking.openURL('https://support.apple.com/guide/health/welcome/ios')}
           >
-            <Text style={[s.btnText, { color: '#0A84FF' }]}>Learn about Apple Health</Text>
+            <Text style={s.learnBtnText}>Learn about Apple Health</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -48,18 +53,25 @@ export default function HealthIntegrationsScreen() {
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 20, fontWeight: '800', marginVertical: 8 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxxl },
+  title: { ...type.title, color: colors.ink, marginTop: spacing.xs },
+  subtitle: { ...type.body, color: colors.inkMuted, marginTop: spacing.sm, marginBottom: spacing.sm },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 12,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+    ...shadow.card,
   },
-  cardTitle: { fontSize: 16, fontWeight: '800', marginBottom: 6, color: '#0f172a' },
-  muted: { color: '#64748b', marginBottom: 10 },
-  btn: { paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  btnDisabled: { backgroundColor: '#f1f5f9' },
-  btnText: { color: '#0f172a', fontWeight: '800' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
+  icon: { width: 42, height: 42, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { ...type.heading, color: colors.ink },
+  muted: { ...type.body, color: colors.inkMuted, marginBottom: spacing.md },
+  btn: { paddingVertical: 12, borderRadius: radius.md, alignItems: 'center' },
+  btnDisabled: { backgroundColor: colors.surfaceMuted },
+  btnText: { color: colors.inkMuted, fontWeight: '800' },
+  learnBtn: { backgroundColor: colors.brandSoft },
+  learnBtnText: { color: colors.brandDark, fontWeight: '800' },
 });

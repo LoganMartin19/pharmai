@@ -13,6 +13,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
+import { colors, radius, type } from '../theme';
+import { Eyebrow } from '../components/Primitives';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 const SAVED_LOGIN_EMAIL_KEY = 'login:savedEmail';
@@ -66,12 +68,14 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login to PharmAI</Text>
+      <Eyebrow>Welcome back</Eyebrow>
+      <Text style={styles.title}>Sign in to PharmAI</Text>
+      <Text style={styles.subtitle}>Your medication and care information stays protected.</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Username / email"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.inkMuted}
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
@@ -83,7 +87,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor="#6B7280"
+        placeholderTextColor={colors.inkMuted}
         secureTextEntry
         autoComplete="password"
         textContentType="password"
@@ -103,7 +107,7 @@ export default function LoginScreen() {
       </Pressable>
 
       <Pressable style={styles.loginButton} onPress={handleLogin}>
-        <Text style={styles.loginButtonText}>Login</Text>
+        <Text style={styles.loginButtonText}>Sign in securely</Text>
       </Pressable>
     </View>
   );
@@ -111,16 +115,17 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, justifyContent: 'center', padding: 20
+    flex: 1, justifyContent: 'center', padding: 24, backgroundColor:colors.background
   },
   title: {
-    fontSize: 24, marginBottom: 20, textAlign: 'center'
+    ...type.hero, color:colors.ink, marginTop:7
   },
+  subtitle:{...type.body,color:colors.inkMuted,marginTop:7,marginBottom:26},
   input: {
-    height: 48, borderColor: '#9CA3AF', borderWidth: 1, marginBottom: 12, paddingHorizontal: 12, borderRadius: 8, color: '#111827'
+    minHeight: 52, borderColor: colors.line, borderWidth: 1, marginBottom: 12, paddingHorizontal: 15, borderRadius: radius.md, color: colors.ink, backgroundColor:colors.surface
   },
   forgotText: {
-    color: '#007bff',
+    color: colors.brand,
     marginBottom: 20,
     textAlign: 'right',
     fontSize: 14,
@@ -135,28 +140,28 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#9CA3AF',
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
     backgroundColor: '#fff',
   },
   checkboxSelected: {
-    backgroundColor: '#0A84FF',
-    borderColor: '#0A84FF',
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
   },
   checkmark: {
     color: '#fff',
     fontWeight: '900',
   },
   rememberText: {
-    color: '#374151',
+    color: colors.ink,
     fontWeight: '600',
   },
   loginButton: {
-    backgroundColor: '#0A84FF',
-    borderRadius: 10,
-    paddingVertical: 13,
+    backgroundColor: colors.brand,
+    borderRadius: radius.pill,
+    paddingVertical: 15,
     alignItems: 'center',
   },
   loginButtonText: {

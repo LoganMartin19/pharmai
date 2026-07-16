@@ -12,6 +12,8 @@ import {
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { colors, radius, type } from '../theme';
+import { Eyebrow } from '../components/Primitives';
 
 export default function SignUpScreen({ navigation }: any) {
   const [name, setName] = useState('');
@@ -55,16 +57,16 @@ export default function SignUpScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, padding: 20, justifyContent: 'center' }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.title}>Create your account</Text>
+      <Eyebrow>Get started</Eyebrow><Text style={styles.title}>Create your account</Text><Text style={styles.subtitle}>A calmer, safer way to manage everyday medicines.</Text>
 
       <TextInput
         value={name}
         onChangeText={setName}
         placeholder="Full name"
-        placeholderTextColor="#777" // darker grey
+        placeholderTextColor={colors.inkMuted}
         autoCapitalize="words"
         autoCorrect={false}
         returnKeyType="next"
@@ -75,7 +77,7 @@ export default function SignUpScreen({ navigation }: any) {
         value={email}
         onChangeText={setEmail}
         placeholder="Email"
-        placeholderTextColor="#777" // darker grey
+        placeholderTextColor={colors.inkMuted}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
@@ -88,7 +90,7 @@ export default function SignUpScreen({ navigation }: any) {
         value={pw}
         onChangeText={setPw}
         placeholder="Password"
-        placeholderTextColor="#777" // darker grey
+        placeholderTextColor={colors.inkMuted}
         secureTextEntry
         autoCapitalize="none"
         textContentType="newPassword"
@@ -114,25 +116,25 @@ export default function SignUpScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
+  container:{flex:1,padding:24,justifyContent:'center',backgroundColor:colors.background},
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 24,
+    ...type.hero,color:colors.ink,marginTop:7,
   },
+  subtitle:{...type.body,color:colors.inkMuted,marginTop:7,marginBottom:26},
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
     fontSize: 16,
     marginBottom: 16,
     backgroundColor: '#fff',
   },
   primaryBtn: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: colors.brand,
+    paddingVertical: 15,
+    borderRadius: radius.pill,
     marginTop: 8,
   },
   primaryBtnText: {

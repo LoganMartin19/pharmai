@@ -9,6 +9,9 @@ import { RootStackParamList } from '../navigation/MainNavigator';
 import styles from './styles/ReminderScreen.styles';
 import SafeLayout from '../components/SafeLayout';
 import PillBadge from '../components/PillBadge';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { colors } from '../theme';
+import { Eyebrow, StatusPill } from '../components/Primitives';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -37,14 +40,15 @@ export default function RemindersScreen() {
         <Text style={styles.name}>{item.name}</Text>
       </View>
 
-      {item.dosage ? <Text style={styles.detail}>💊 {item.dosage}</Text> : null}
-      {item.time ? <Text style={styles.detail}>⏰ {item.time}</Text> : null}
+      <StatusPill label={item.frequency || 'Scheduled'} tone="blue" />
+      {item.dosage ? <Text style={styles.detail}>{item.dosage}</Text> : null}
+      {item.time ? <View style={styles.detailRow}><Ionicons name="time-outline" size={15} color={colors.inkMuted}/><Text style={styles.detail}>{item.time}</Text></View> : null}
 
       <Pressable
         style={styles.trackerButton}
         onPress={() => navigation.navigate('MedicationTracker', { medication: item })}
       >
-        <Text style={styles.trackerButtonText}>📊 Tracker</Text>
+        <Ionicons name="analytics-outline" size={17} color={colors.brand}/><Text style={styles.trackerButtonText}>Adherence</Text>
       </Pressable>
 
       {/* 💬 More clarification → opens Chat with the selected med */}
@@ -52,14 +56,14 @@ export default function RemindersScreen() {
         style={[styles.trackerButton, { backgroundColor: '#f1f5f9', marginTop: 8 }]}
         onPress={() => navigation.navigate('Chat', { contextMedication: item })}
       >
-        <Text style={[styles.trackerButtonText, { color: '#0A84FF' }]}>💬 More clarification</Text>
+        <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.brand}/><Text style={styles.trackerButtonText}>Ask PharmAI</Text>
       </Pressable>
 
       <Pressable
-        style={[styles.trackerButton, { backgroundColor: 'red', marginTop: 8 }]}
+        style={[styles.trackerButton, styles.deleteButton]}
         onPress={() => handleDelete(item)}
       >
-        <Text style={[styles.trackerButtonText, { color: 'white' }]}>🗑️ Delete</Text>
+        <Ionicons name="trash-outline" size={17} color={colors.danger}/><Text style={[styles.trackerButtonText, { color: colors.danger }]}>Delete</Text>
       </Pressable>
     </Pressable>
   );
@@ -71,7 +75,7 @@ export default function RemindersScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={[styles.list, { paddingTop: 6 }]}
-        ListHeaderComponent={<Text style={styles.title}>Your Reminders</Text>}
+        ListHeaderComponent={<View style={styles.header}><Eyebrow>Your schedule</Eyebrow><Text style={styles.title}>Medications</Text><Text style={styles.subtitle}>Review timing, edit reminders and track progress.</Text></View>}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 30 }}>
             No reminders yet.
@@ -90,7 +94,7 @@ export default function RemindersScreen() {
           ])
         }
       >
-        <Text style={{ fontSize: 24, color: '#fff', fontWeight: '800', lineHeight: 24 }}>＋</Text>
+        <Ionicons name="add" size={29} color={colors.white}/>
       </Pressable>
     </SafeLayout>
   );

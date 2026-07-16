@@ -7,9 +7,14 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  StyleSheet,
+  ScrollView,
 } from 'react-native';
 import SafeLayout from '../components/SafeLayout';
 import { createInvite, acceptInvite } from '../utils/careApi';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Eyebrow } from '../components/Primitives';
+import { colors, radius, shadow, spacing, type } from '../theme';
 
 export default function CareLinkScreen() {
   const [tab, setTab] = useState<'share' | 'follow'>('share');
@@ -61,27 +66,20 @@ export default function CareLinkScreen() {
 
   return (
     <SafeLayout>
-      <View style={{ flex: 1, padding: 20, gap: 16 }}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Eyebrow>CARE CIRCLE</Eyebrow>
+        <Text style={styles.title}>Support, with consent</Text>
+        <Text style={styles.subtitle}>Share medication progress with someone you trust, or securely follow someone who has invited you.</Text>
         {/* Top toggle */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={styles.tabs}>
           {(['share', 'follow'] as const).map((v) => (
             <Pressable
               key={v}
               onPress={() => setTab(v)}
-              style={{
-                paddingVertical: 8,
-                paddingHorizontal: 14,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: tab === v ? '#0A84FF' : '#e5e7eb',
-                backgroundColor: tab === v ? '#E8F0FF' : '#fff',
-              }}
+              style={[styles.tab, tab === v && styles.tabActive]}
             >
               <Text
-                style={{
-                  fontWeight: '600',
-                  color: tab === v ? '#0A84FF' : '#111',
-                }}
+                style={[styles.tabText, tab === v && styles.tabTextActive]}
               >
                 {v === 'share' ? 'Share my meds' : 'Follow someone'}
               </Text>
@@ -90,22 +88,17 @@ export default function CareLinkScreen() {
         </View>
 
         {linkedBanner && (
-          <View
-            style={{
-              padding: 10,
-              backgroundColor: '#E8F5E9',
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: '#C8E6C9',
-            }}
-          >
-            <Text style={{ color: '#256029' }}>{linkedBanner}</Text>
+          <View style={styles.success}>
+            <Ionicons name="checkmark-circle" size={20} color={colors.brandDark} />
+            <Text style={styles.successText}>{linkedBanner}</Text>
           </View>
         )}
 
         {tab === 'share' ? (
-          <View style={{ gap: 12 }}>
-            <Text>
+          <View style={styles.card}>
+            <View style={styles.icon}><Ionicons name="share-social-outline" size={24} color={colors.brandDark} /></View>
+            <Text style={styles.cardTitle}>Invite a trusted person</Text>
+            <Text style={styles.body}>
               Generate a one‑time code and send it to your caregiver. It expires
               in 30 minutes.
             </Text>
@@ -113,65 +106,40 @@ export default function CareLinkScreen() {
             <Pressable
               onPress={doCreate}
               disabled={busy}
-              style={{
-                opacity: busy ? 0.6 : 1,
-                backgroundColor: '#0A84FF',
-                padding: 12,
-                borderRadius: 10,
-                alignItems: 'center',
-              }}
+              style={[styles.primaryButton, busy && styles.disabled]}
             >
               {busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={{ color: '#fff', fontWeight: '700' }}>
-                  Generate Code
+                <Text style={styles.primaryButtonText}>
+                  Generate secure code
                 </Text>
               )}
             </Pressable>
 
             {gen?.code && (
-              <View
-                style={{
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: '#e5e7eb',
-                  borderRadius: 12,
-                  gap: 10,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 26,
-                    fontWeight: '800',
-                    letterSpacing: 2,
-                    textAlign: 'center',
-                  }}
-                >
+              <View style={styles.codeCard}>
+                <Text style={styles.code}>
                   {gen.code}
                 </Text>
-                <Text style={{ textAlign: 'center', color: '#666' }}>
+                <Text style={styles.expiry}>
                   Expires ~ {gen.exp}
                 </Text>
 
                 <Pressable
                   onPress={doShare}
-                  style={{
-                    alignSelf: 'center',
-                    paddingHorizontal: 14,
-                    paddingVertical: 8,
-                    borderRadius: 8,
-                    backgroundColor: '#F3F4F6',
-                  }}
+                  style={styles.secondaryButton}
                 >
-                  <Text style={{ fontWeight: '600' }}>Share code</Text>
+                  <Text style={styles.secondaryButtonText}>Share code</Text>
                 </Pressable>
               </View>
             )}
           </View>
         ) : (
-          <View style={{ gap: 12 }}>
-            <Text>Enter the code they shared with you:</Text>
+          <View style={styles.card}>
+            <View style={styles.icon}><Ionicons name="people-outline" size={24} color={colors.brandDark} /></View>
+            <Text style={styles.cardTitle}>Accept an invitation</Text>
+            <Text style={styles.body}>Enter the one-time code they shared with you.</Text>
 
             <TextInput
               placeholder="e.g. 7K3F9ZQV"
@@ -179,35 +147,53 @@ export default function CareLinkScreen() {
               autoCorrect={false}
               value={code}
               onChangeText={(t) => setCode(t.toUpperCase())}
-              style={{
-                borderWidth: 1,
-                borderColor: '#e5e7eb',
-                borderRadius: 10,
-                padding: 12,
-                letterSpacing: 2,
-              }}
+              placeholderTextColor={colors.inkMuted}
+              style={styles.input}
             />
 
             <Pressable
               onPress={doAccept}
               disabled={busy || !code.trim()}
-              style={{
-                opacity: busy || !code.trim() ? 0.6 : 1,
-                backgroundColor: '#0A84FF',
-                padding: 12,
-                borderRadius: 10,
-                alignItems: 'center',
-              }}
+              style={[styles.primaryButton, (busy || !code.trim()) && styles.disabled]}
             >
               {busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Link</Text>
+                <Text style={styles.primaryButtonText}>Connect securely</Text>
               )}
             </Pressable>
           </View>
         )}
-      </View>
+        <View style={styles.privacy}><Ionicons name="lock-closed-outline" size={18} color={colors.inkMuted} /><Text style={styles.privacyText}>Access can be revoked at any time. Only the medication information you permit is shared.</Text></View>
+      </ScrollView>
     </SafeLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxxl },
+  title: { ...type.title, color: colors.ink, marginTop: spacing.xs },
+  subtitle: { ...type.body, color: colors.inkMuted, marginTop: spacing.sm, marginBottom: spacing.xl },
+  tabs: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  tab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  tabActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  tabText: { ...type.label, color: colors.inkMuted },
+  tabTextActive: { color: colors.brandDark },
+  success: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, marginBottom: spacing.md },
+  successText: { flex: 1, color: colors.brandDark, fontWeight: '600' },
+  card: { gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.xl, ...shadow.card },
+  icon: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { ...type.heading, color: colors.ink },
+  body: { ...type.body, color: colors.inkMuted },
+  primaryButton: { backgroundColor: colors.brand, paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },
+  primaryButtonText: { color: colors.white, fontWeight: '800' },
+  disabled: { opacity: 0.5 },
+  codeCard: { padding: spacing.lg, backgroundColor: colors.background, borderRadius: radius.md, gap: spacing.sm },
+  code: { fontSize: 28, fontWeight: '800', letterSpacing: 3, textAlign: 'center', color: colors.ink },
+  expiry: { textAlign: 'center', color: colors.inkMuted },
+  secondaryButton: { alignSelf: 'center', paddingHorizontal: spacing.lg, paddingVertical: 10, borderRadius: radius.md, backgroundColor: colors.brandSoft },
+  secondaryButtonText: { color: colors.brandDark, fontWeight: '700' },
+  input: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14, letterSpacing: 3, fontSize: 18, color: colors.ink, backgroundColor: colors.background },
+  privacy: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, paddingHorizontal: spacing.sm },
+  privacyText: { ...type.caption, color: colors.inkMuted, flex: 1 },
+});

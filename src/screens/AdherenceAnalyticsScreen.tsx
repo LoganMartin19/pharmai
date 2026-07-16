@@ -4,6 +4,8 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import SafeLayout from '../components/SafeLayout';
 import { useReminders } from '../context/RemindersContext';
 import type { Medication } from '../types/Medication';
+import { Eyebrow } from '../components/Primitives';
+import { colors, radius, shadow, spacing, type } from '../theme';
 
 type DayStat = { date: string; taken: number; total: number; pct: number };
 type MedStat = { id: string; name: string; taken: number; total: number; pct: number };
@@ -85,7 +87,8 @@ export default function AdherenceAnalyticsScreen() {
 
   return (
     <SafeLayout>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+      <ScrollView contentContainerStyle={s.content}>
+        <Eyebrow>YOUR PROGRESS</Eyebrow>
         <Text style={s.title}>All‑medications adherence</Text>
 
         {/* Window selector */}
@@ -104,9 +107,11 @@ export default function AdherenceAnalyticsScreen() {
         </View>
 
         {/* Overall summary */}
-        <Text style={{ marginTop: 10, fontWeight: '700', color: '#111' }}>
-          Overall average: {overallAvg}% ({dayStats.length} days)
-        </Text>
+        <View style={s.summaryCard}>
+          <Text style={s.summaryLabel}>Overall average</Text>
+          <Text style={s.summaryValue}>{overallAvg}%</Text>
+          <Text style={s.summaryMeta}>Across {dayStats.length} days</Text>
+        </View>
 
         {/* Overall daily bar chart */}
         <View style={s.chartWrap}>
@@ -123,7 +128,7 @@ export default function AdherenceAnalyticsScreen() {
         </View>
 
         {/* Per‑med summary grid */}
-        <Text style={{ marginTop: 12, fontWeight: '700', color: '#111' }}>By medication</Text>
+        <Text style={s.sectionTitle}>By medication</Text>
         <View style={s.grid}>
           {medStats.map(ms => (
             <View key={ms.id} style={s.tile}>
@@ -157,9 +162,9 @@ export default function AdherenceAnalyticsScreen() {
                 <Text style={s.medBlockTitle}>{m.name} — last 7 days avg {medAvg}%</Text>
                 {rows.map(r => (
                   <View key={m.id + r.date} style={s.rowLine}>
-                    <Text style={{ width: 90, color: '#555' }}>{r.date}</Text>
-                    <Text style={{ marginLeft: 6, fontWeight: '600' }}>{r.pct}%</Text>
-                    <Text style={{ marginLeft: 'auto', color: '#555' }}>
+                    <Text style={s.dateText}>{r.date}</Text>
+                    <Text style={s.percentText}>{r.pct}%</Text>
+                    <Text style={s.doseText}>
                       {r.taken}/{r.total} doses
                     </Text>
                   </View>
@@ -174,32 +179,42 @@ export default function AdherenceAnalyticsScreen() {
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 20, fontWeight: '700', marginVertical: 8 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxxl },
+  title: { ...type.title, color: colors.ink, marginTop: spacing.xs, marginBottom: spacing.md },
   row: { flexDirection: 'row', gap: 8, marginTop: 6 },
-  pill: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: '#e5e7eb' },
-  pillActive: { backgroundColor: '#E8F0FF', borderColor: '#0A84FF' },
-  pillText: { color: '#333', fontWeight: '600' },
-  pillTextActive: { color: '#0A84FF' },
+  pill: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  pillActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  pillText: { color: colors.inkMuted, fontWeight: '600' },
+  pillTextActive: { color: colors.brandDark },
+  summaryCard: { marginTop: spacing.lg, backgroundColor: colors.ink, borderRadius: radius.lg, padding: spacing.xl },
+  summaryLabel: { ...type.label, color: '#B7CBC4' },
+  summaryValue: { ...type.hero, color: colors.white, marginTop: spacing.xs },
+  summaryMeta: { ...type.caption, color: '#B7CBC4', marginTop: spacing.xs },
 
-  chartWrap: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingVertical: 12, borderBottomWidth: 1, borderColor: '#f1f5f9' },
+  chartWrap: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingVertical: spacing.lg, borderBottomWidth: 1, borderColor: colors.line },
   barItem: { alignItems: 'center' },
-  bar: { width: 14, backgroundColor: '#0A84FF', borderTopLeftRadius: 6, borderTopRightRadius: 6 },
-  barLabel: { fontSize: 10, color: '#666', marginTop: 4 },
+  bar: { width: 14, backgroundColor: colors.brand, borderTopLeftRadius: 6, borderTopRightRadius: 6 },
+  barLabel: { fontSize: 10, color: colors.inkMuted, marginTop: 4 },
+  sectionTitle: { ...type.heading, color: colors.ink, marginTop: spacing.lg },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   tile: {
     width: '48%',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.line,
+    ...shadow.card,
   },
-  tileTitle: { fontWeight: '700', marginBottom: 2, color: '#111' },
-  tilePct: { fontSize: 18, fontWeight: '800', color: '#0A84FF' },
-  tileSub: { color: '#555', marginTop: 2 },
+  tileTitle: { fontWeight: '700', marginBottom: 2, color: colors.ink },
+  tilePct: { fontSize: 18, fontWeight: '800', color: colors.brand },
+  tileSub: { color: colors.inkMuted, marginTop: 2 },
 
-  medBlock: { marginTop: 12, paddingTop: 6, borderTopWidth: 1, borderColor: '#f1f5f9' },
-  medBlockTitle: { fontWeight: '700', marginBottom: 6, color: '#111' },
-  rowLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: '#f1f5f9' },
+  medBlock: { marginTop: spacing.lg, padding: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line },
+  medBlockTitle: { fontWeight: '700', marginBottom: 6, color: colors.ink },
+  rowLine: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.line },
+  dateText: { width: 90, color: colors.inkMuted },
+  percentText: { marginLeft: 6, fontWeight: '700', color: colors.ink },
+  doseText: { marginLeft: 'auto', color: colors.inkMuted },
 });

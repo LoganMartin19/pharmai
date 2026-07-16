@@ -8,6 +8,8 @@ import { Medication } from '../types/Medication';
 import styles from './styles/MedicationTrackerScreen.styles';
 import MedicationSafetyCard from '../components/MedicationSafetyCard';
 import { doseCount } from '../utils/doseSchedule';
+import { Eyebrow } from '../components/Primitives';
+import { colors, radius, spacing, type } from '../theme';
 
 type MedicationTrackerRouteProp = RouteProp<RootStackParamList, 'MedicationTracker'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'MedicationTracker'>;
@@ -97,8 +99,9 @@ export default function MedicationTrackerScreen() {
   /* ---------------- Render ---------------- */
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <Text style={styles.title}>{medication.name} Tracker</Text>
-      <Text style={{ color: '#666', marginBottom: 10 }}>
+      <Eyebrow>MEDICATION INSIGHTS</Eyebrow>
+      <Text style={styles.title}>{medication.name}</Text>
+      <Text style={{ color: colors.inkMuted, marginBottom: spacing.md }}>
         {medication.dosage ?? ''}{medication.time ? ` • ${medication.time}` : ''}{medication.frequency ? ` • ${medication.frequency}` : ''}
       </Text>
       <MedicationSafetyCard medication={medication} />
@@ -176,7 +179,7 @@ export default function MedicationTrackerScreen() {
             ))}
           </View>
 
-          <Text style={{ marginTop: 8, marginBottom: 6, color: '#111', fontWeight: '700' }}>
+          <Text style={local.average}>
             Average: {avg}% ({stats.length} days)
           </Text>
 
@@ -198,9 +201,9 @@ export default function MedicationTrackerScreen() {
           <View style={{ marginTop: 12 }}>
             {stats.slice(-7).reverse().map(s => (
               <View key={s.date} style={local.rowLine}>
-                <Text style={{ width: 90, color: '#555' }}>{s.date}</Text>
-                <Text style={{ marginLeft: 6, fontWeight: '600' }}>{s.pct}%</Text>
-                <Text style={{ marginLeft: 'auto', color: '#555' }}>
+                <Text style={local.dateText}>{s.date}</Text>
+                <Text style={local.percentText}>{s.pct}%</Text>
+                <Text style={local.doseText}>
                   {s.taken}/{s.total} doses
                 </Text>
               </View>
@@ -214,41 +217,42 @@ export default function MedicationTrackerScreen() {
 
 const local = StyleSheet.create({
   /* tabs */
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   tabPill: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.line,
   },
-  tabActive: { backgroundColor: '#E8F0FF', borderColor: '#0A84FF' },
-  tabText: { color: '#333', fontWeight: '600' },
-  tabTextActive: { color: '#0A84FF' },
+  tabActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  tabText: { color: colors.inkMuted, fontWeight: '700' },
+  tabTextActive: { color: colors.brandDark },
 
   /* link button */
   linkBtn: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E8F0FF',
+    backgroundColor: colors.brandSoft,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     marginBottom: 10,
   },
-  linkBtnText: { color: '#0A84FF', fontWeight: '700' },
+  linkBtnText: { color: colors.brandDark, fontWeight: '700' },
 
   /* analytics controls */
   row: { flexDirection: 'row', gap: 8, marginTop: 6 },
   pill: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.line,
   },
-  pillActive: { backgroundColor: '#E8F0FF', borderColor: '#0A84FF' },
-  pillText: { color: '#333', fontWeight: '600' },
-  pillTextActive: { color: '#0A84FF' },
+  pillActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  pillText: { color: colors.inkMuted, fontWeight: '600' },
+  pillTextActive: { color: colors.brandDark },
+  average: { ...type.heading, color: colors.ink, marginTop: spacing.md, marginBottom: spacing.sm },
 
   /* chart */
   chartWrap: {
@@ -257,11 +261,11 @@ const local = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: colors.line,
   },
   barItem: { alignItems: 'center' },
-  bar: { width: 14, backgroundColor: '#0A84FF', borderTopLeftRadius: 6, borderTopRightRadius: 6 },
-  barLabel: { fontSize: 10, color: '#666', marginTop: 4 },
+  bar: { width: 14, backgroundColor: colors.brand, borderTopLeftRadius: 6, borderTopRightRadius: 6 },
+  barLabel: { fontSize: 10, color: colors.inkMuted, marginTop: 4 },
 
   /* list */
   rowLine: {
@@ -269,6 +273,9 @@ const local = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: colors.line,
   },
+  dateText: { width: 90, color: colors.inkMuted },
+  percentText: { marginLeft: spacing.sm, fontWeight: '700', color: colors.ink },
+  doseText: { marginLeft: 'auto', color: colors.inkMuted },
 });

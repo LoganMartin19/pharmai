@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/MainNavigator'; // update if needed
@@ -11,23 +12,25 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.brandMark}><Ionicons name="medical" size={29} color="#fff"/></View>
       <Text style={styles.title}>PharmAI</Text>
-      {/* Replace with your logo below if desired */}
-      {/* <Image source={require('../assets/logo.png')} style={styles.logo} /> */}
+      <Text style={styles.hero}>Medicines made clearer.</Text>
+      <Text style={styles.subtitle}>Understand your medication, remember every dose and stay connected to care.</Text>
 
       <TouchableOpacity
         style={styles.button}
         onPress={() => navigation.navigate('Login')}
       >
-        <Text style={styles.buttonText}>Sign In</Text>
+        <Text style={styles.buttonText}>Sign in securely</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.button, styles.outlineButton]}
         onPress={() => navigation.navigate('SignUp')}
       >
-        <Text style={[styles.buttonText, styles.outlineText]}>Sign Up</Text>
+        <Text style={[styles.buttonText, styles.outlineText]}>Create an account</Text>
       </TouchableOpacity>
+      <Text style={styles.trust}>Private by design · NHS-grounded information</Text>
     </View>
   );
 }

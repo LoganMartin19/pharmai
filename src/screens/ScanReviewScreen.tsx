@@ -6,6 +6,8 @@ import SafeLayout from '../components/SafeLayout';
 import type { RootStackParamList } from '../navigation/MainNavigator';
 import { MedicineSuggestion, isRecognisedMedicineName, searchMedicineNames } from '../utils/medicineDirectory';
 import MedicationSafetyCard from '../components/MedicationSafetyCard';
+import { colors, radius, shadow, spacing, type } from '../theme';
+import { Eyebrow } from '../components/Primitives';
 
 type Route = RouteProp<RootStackParamList, 'ScanReview'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ScanReview'>;
@@ -77,7 +79,7 @@ export default function ScanReviewScreen() {
   return (
     <SafeLayout>
       <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
-        <Text style={styles.title}>Check scan</Text>
+        <Eyebrow>Step 2 of 3</Eyebrow><Text style={styles.title}>Check the medicine</Text>
         <Text style={styles.subtitle}>Confirm the details before creating a reminder.</Text>
 
         <Text style={styles.label}>Medication name</Text>
@@ -150,17 +152,17 @@ export default function ScanReviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 6 },
-  subtitle: { color: '#6B7280', marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '700', color: '#374151', marginBottom: 6, marginTop: 12 },
+  title: { ...type.hero, color: colors.ink, marginTop:7, marginBottom: 6 },
+  subtitle: { ...type.body,color: colors.inkMuted, marginBottom: 20 },
+  label: { ...type.label, color: colors.ink, marginBottom: 6, marginTop: 14 },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderColor: colors.line,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   suggestionsBox: {
     borderWidth: 1,
@@ -187,9 +189,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fff',
   },
-  optionSelected: { borderColor: '#0A84FF', backgroundColor: '#E8F0FF' },
+  optionSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   optionText: { color: '#374151', fontWeight: '700' },
-  optionTextSelected: { color: '#0A84FF' },
+  optionTextSelected: { color: colors.brandDark },
   rawBox: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -202,8 +204,8 @@ const styles = StyleSheet.create({
   infoPreview: { marginTop: 16 },
   primaryButton: {
     marginTop: 20,
-    borderRadius: 10,
-    backgroundColor: '#0A84FF',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
     alignItems: 'center',
     paddingVertical: 14,
   },

@@ -25,6 +25,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { setFollowUpDelayMinutes, debugTestNotification } from '../utils/notifications';
 import { registerExpoPushToken } from '../utils/expoPush';
 import { useUser } from '../context/UserContext';
+import { colors, radius, spacing, type } from '../theme';
+import { Eyebrow } from '../components/Primitives';
 
 type Gender = 'female' | 'male' | 'prefer_not_to_say' | '';
 
@@ -141,6 +143,7 @@ export default function SettingsScreen() {
     <SafeLayout>
       <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Eyebrow>Your account</Eyebrow><Text style={styles.title}>Settings</Text>
           {/* Account */}
           <Text style={styles.sectionTitle}>Account Details</Text>
           <Text style={styles.label}>Name</Text>
@@ -208,7 +211,7 @@ export default function SettingsScreen() {
               <Pressable
                 onPress={handleSaveDelay}
                 disabled={savingDelay}
-                style={[styles.saveBtn, { backgroundColor: savingDelay ? '#9EC9FF' : '#0A84FF' }]}
+                style={[styles.saveBtn, { opacity: savingDelay ? .6 : 1 }]}
               >
                 <Text style={styles.saveBtnText}>{savingDelay ? 'Saving…' : 'Save'}</Text>
               </Pressable>
@@ -247,14 +250,16 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, paddingBottom: 48 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  label: { fontSize: 14, marginBottom: 4, color: '#555' },
+  container: { padding: 4, paddingBottom: 120 },
+  title:{...type.hero,color:colors.ink,marginTop:7,marginBottom:28},
+  sectionTitle: { ...type.heading,color:colors.ink, marginTop:10,marginBottom: 12 },
+  label: { ...type.label, marginBottom: 6, color: colors.inkMuted },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 10,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: 13,
+    backgroundColor:colors.surface,
     marginBottom: 12,
     minWidth: 100,
   },
@@ -267,18 +272,18 @@ const styles = StyleSheet.create({
   genderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   genderPill: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.line,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: '#fff',
   },
-  genderPillActive: { borderColor: '#0A84FF', backgroundColor: '#E8F0FF' },
-  genderPillText: { color: '#374151', fontWeight: '700' },
-  genderPillTextActive: { color: '#0A84FF' },
+  genderPillActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  genderPillText: { color: colors.ink, fontWeight: '700' },
+  genderPillTextActive: { color: colors.brandDark },
   delayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   bumpBtn: { paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8 },
-  saveBtn: { paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginBottom: 16 },
+  saveBtn: { paddingVertical: 14, borderRadius: radius.pill, alignItems: 'center', marginBottom: 16,backgroundColor:colors.brand },
   saveBtnText: { color: '#fff', fontWeight: '700' },
   debugBtn: {
     backgroundColor: '#f3f4f6',
@@ -288,13 +293,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   portalBtn: {
-    backgroundColor: '#E8F0FF',
+    backgroundColor: colors.brandSoft,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 16,
   },
-  portalBtnText: { color: '#0A53B8', fontWeight: '700' },
+  portalBtnText: { color: colors.brandDark, fontWeight: '700' },
   logoutBtn: {
     borderWidth: 1,
     borderColor: '#fca5a5',

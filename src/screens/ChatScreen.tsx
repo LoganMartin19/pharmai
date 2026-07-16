@@ -19,6 +19,9 @@ import { Msg } from '../types/chat';
 import { sendChatMessage } from '../api/chat';
 import SafeLayout from '../components/SafeLayout';
 import { auth, db } from '../firebase';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { colors, radius, shadow, spacing, type } from '../theme';
+import { Eyebrow } from '../components/Primitives';
 
 type ChatRoute = RouteProp<RootStackParamList, 'Chat'>;
 type ChatSummary = { id: string; title: string; updatedAt?: any };
@@ -163,7 +166,8 @@ export default function ChatScreen() {
           ListHeaderComponent={
             messages.length === 0 ? (
               <View style={styles.historyWrap}>
-                <Text style={styles.title}>Medication chat</Text>
+                <Eyebrow>NHS-grounded support</Eyebrow>
+                <Text style={styles.title}>Ask PharmAI</Text>
                 <Text style={styles.subtitle}>Ask about timing, side effects, interactions, or what to check with a pharmacist. Medicine answers are grounded in retrieved NHS content.</Text>
                 {history.length ? (
                   <>
@@ -225,12 +229,16 @@ export default function ChatScreen() {
             value={input}
             onChangeText={setInput}
             placeholder="Ask something about your medication..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.inkMuted}
             style={styles.input}
             multiline
           />
           <Pressable style={[styles.send, loading && { opacity: 0.5 }]} onPress={() => send()} disabled={loading}>
-            <Text style={styles.sendText}>{loading ? '...' : 'Send'}</Text>
+            {loading ? (
+              <ActivityIndicator color={colors.white}/>
+            ) : (
+              <Ionicons name="arrow-up" size={20} color={colors.white}/>
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -241,37 +249,38 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safe: { paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 },
   keyboard: { flex: 1 },
-  messages: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 },
-  title: { fontSize: 28, fontWeight: '900', color: '#111827', marginBottom: 6 },
-  subtitle: { color: '#64748B', lineHeight: 20, marginBottom: 18 },
+  messages: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 18 },
+  title: { ...type.hero, color: colors.ink, marginTop: 7, marginBottom: 7 },
+  subtitle: { ...type.body, color: colors.inkMuted, marginBottom: 22 },
   historyWrap: { paddingTop: 18 },
   historyTitle: { color: '#111827', fontWeight: '900', marginBottom: 8 },
   historyItem: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: 14,
     marginBottom: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
+    ...shadow.card,
   },
-  historyItemText: { color: '#111827', fontWeight: '700' },
+  historyItemText: { color: colors.ink, fontWeight: '700' },
   chatHeader: { alignItems: 'flex-end', marginBottom: 8 },
-  newButton: { backgroundColor: '#E8F0FF', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  newButtonText: { color: '#0A84FF', fontWeight: '800' },
-  bubble: { marginBottom: 10, maxWidth: '82%', padding: 12, borderRadius: 14, flexShrink: 1 },
-  user: { alignSelf: 'flex-end', backgroundColor: '#0A84FF' },
-  bot: { alignSelf: 'flex-start', backgroundColor: '#F1F5F9' },
+  newButton: { backgroundColor: colors.brandSoft, borderRadius: radius.pill, paddingHorizontal: 13, paddingVertical: 8 },
+  newButtonText: { color: colors.brandDark, fontWeight: '800' },
+  bubble: { marginBottom: 12, maxWidth: '86%', padding: 14, borderRadius: radius.lg, flexShrink: 1 },
+  user: { alignSelf: 'flex-end', backgroundColor: colors.brand, borderBottomRightRadius: 6 },
+  bot: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderBottomLeftRadius: 6 },
   typing: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   messageText: { flexShrink: 1, flexWrap: 'wrap', lineHeight: 21, fontSize: 15 },
   headingText: { fontWeight: '900', color: '#111827' },
   userText: { color: '#fff' },
-  botText: { color: '#111827' },
+  botText: { color: colors.ink },
   nhsAttribution: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#CBD5E1', marginTop: 10, paddingTop: 9 },
   nhsLogo: { width: 150, height: 48, alignSelf: 'flex-start' },
   nhsAttributionText: { color: '#475569', fontSize: 12, lineHeight: 17 },
   nhsSourceLink: { color: '#005EB8', fontWeight: '800', fontSize: 12, marginTop: 3, textDecorationLine: 'underline' },
-  inputRow: { flexDirection: 'row', padding: 10, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#e5e7eb' },
-  input: { flex: 1, minHeight: 44, maxHeight: 120, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#f8fafc', borderRadius: 12, color: '#111827' },
-  send: { height: 44, paddingHorizontal: 16, borderRadius: 12, backgroundColor: '#0A84FF', alignItems: 'center', justifyContent: 'center' },
+  inputRow: { flexDirection: 'row', padding: 12, paddingBottom: 90, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, backgroundColor: colors.background },
+  input: { flex: 1, minHeight: 48, maxHeight: 120, paddingHorizontal: 15, paddingVertical: 12, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderRadius: radius.lg, color: colors.ink },
+  send: { width: 48, height: 48, borderRadius: radius.pill, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#fff', fontWeight: '800' },
 });

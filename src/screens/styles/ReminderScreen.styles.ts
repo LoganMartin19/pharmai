@@ -1,47 +1,46 @@
 // src/screens/styles/ReminderScreen.styles.ts
 import { StyleSheet } from 'react-native';
+import { colors, radius, shadow, spacing, type } from '../../theme';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 60, // or use useSafeAreaInsets() for dynamic padding
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: 16,
+    ...type.hero,
+    color: colors.ink,
     textAlign: 'left',
   },
   list: {
-    paddingBottom: 60,
+    paddingBottom: 120,
   },
   card: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    padding: spacing.lg,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    ...shadow.card,
   },
   name: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...type.heading,
+    color: colors.ink,
     marginBottom: 4,
   },
   detail: {
     fontSize: 14,
-    color: '#555',
+    color: colors.inkMuted,
     marginBottom: 2,
   },
   addButton: {
     position: 'absolute',
     right: 20,
-    bottom: 20,
-    backgroundColor: '#007AFF',
+    bottom: 92,
+    backgroundColor: colors.brand,
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -76,16 +75,23 @@ const styles = StyleSheet.create({
   },
   trackerButton: {
     marginTop: 10,
-    paddingVertical: 6,
+    paddingVertical: 9,
     paddingHorizontal: 12,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   trackerButtonText: {
     fontSize: 14,
-    color: '#333',
+    color: colors.brandDark,
   },
+  header: { marginBottom: 20 },
+  subtitle: { ...type.body, color: colors.inkMuted, marginTop: 5 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  deleteButton: { backgroundColor: colors.dangerSoft, marginTop: 8 },
 });
 
 export default styles;

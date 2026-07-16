@@ -23,6 +23,7 @@ import PillLookPicker from '../components/PillLookPicker';
 import { RootStackParamList } from '../navigation/MainNavigator';
 import { doseCount } from '../utils/doseSchedule';
 import { MedicineSuggestion, searchMedicineNames } from '../utils/medicineDirectory';
+import { Eyebrow } from '../components/Primitives';
 
 type R = RouteProp<RootStackParamList, 'AddReminder'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AddReminder'>;
@@ -257,7 +258,7 @@ export default function AddReminderScreen() {
   return (
     <SafeLayout>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{editing ? 'Edit Reminder' : 'Add Reminder'}</Text>
+        <Eyebrow>{editing ? 'Medication settings' : 'Step 3 of 3'}</Eyebrow><Text style={styles.title}>{editing ? 'Edit medication' : 'Set your schedule'}</Text>
 
         <Text style={styles.label}>Medication Name</Text>
         <TextInput

@@ -1,45 +1,52 @@
 import { StyleSheet } from 'react-native';
+import { colors, radius, spacing, type } from '../../theme';
 
 export default StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
   },
   scrollContent: {
-    paddingVertical: 24,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxxl,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: 16,
+    ...type.title,
+    color: colors.ink,
+    marginBottom: spacing.xs,
   },
   dayContainer: {
-    marginBottom: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   dayLabel: {
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 6,
-    color: '#333',
+    color: colors.ink,
   },
   missed: {
-    color: 'red',
+    color: colors.danger,
   },
   progressBar: {
     width: '100%',
     height: 12,
-    backgroundColor: '#eee',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 6,
     flexDirection: 'row',
     overflow: 'hidden',
   },
   progressFill: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.brand,
   },
   progressText: {
     marginTop: 4,
     fontSize: 13,
-    color: '#666',
+    color: colors.inkMuted,
   },
 });

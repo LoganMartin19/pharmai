@@ -18,6 +18,8 @@ import type { RootStackParamList } from '../navigation/MainNavigator';
 import { findNearbyPharmacies, Pharmacy } from '../utils/pharmacySearch';
 import { PHARMACY_SERVICE_META, PharmacyServiceId } from '../utils/pharmacyServices';
 import type { PharmacyService } from '../utils/pharmacyServices';
+import { colors, radius, shadow, spacing, type } from '../theme';
+import { Eyebrow } from '../components/Primitives';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Coords = { latitude: number; longitude: number };
@@ -171,7 +173,8 @@ export default function PharmacyScreen() {
         contentContainerStyle={{ paddingBottom: 28 }}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>Pharmacies</Text>
+            <Eyebrow>Local healthcare</Eyebrow>
+            <Text style={styles.title}>Pharmacies near you</Text>
             <Text style={styles.subtitle}>
               Find nearby pharmacies and see services listed by public data or verified partner profiles.
             </Text>
@@ -298,26 +301,26 @@ export default function PharmacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 6 },
-  subtitle: { color: '#6B7280', marginBottom: 14 },
+  title: { ...type.hero, color: colors.ink, marginTop: 7, marginBottom: 7 },
+  subtitle: { ...type.body, color: colors.inkMuted, marginBottom: 18 },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
-    borderRadius: 10,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#D8E7F5',
-    backgroundColor: '#F1F7FD',
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     marginBottom: 10,
   },
-  heroTitle: { color: '#123B5D', fontWeight: '800', fontSize: 16 },
-  heroText: { color: '#456579', fontSize: 13, marginTop: 3 },
+  heroTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
+  heroText: { color: colors.inkMuted, fontSize: 13, marginTop: 3, lineHeight: 19 },
   locationButton: {
     minWidth: 112,
     minHeight: 42,
-    borderRadius: 8,
-    backgroundColor: '#0A84FF',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -328,17 +331,17 @@ const styles = StyleSheet.create({
   filterChip: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 36,
     justifyContent: 'center',
   },
-  filterChipActive: { borderColor: '#0A84FF', backgroundColor: '#E8F0FF' },
+  filterChipActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   filterChipDisabled: { opacity: 0.45 },
   filterText: { color: '#374151', fontWeight: '800', fontSize: 12 },
-  filterTextActive: { color: '#0A53B8' },
+  filterTextActive: { color: colors.brandDark },
   filterTextDisabled: { color: '#6B7280' },
   legendVerified: {
     color: '#17633A',
@@ -369,26 +372,27 @@ const styles = StyleSheet.create({
   },
   disclosure: { color: '#6B7280', fontSize: 13, marginBottom: 10 },
   card: {
-    padding: 14,
-    borderRadius: 10,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#fff',
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     marginBottom: 12,
+    ...shadow.card,
   },
   cardMain: { flexDirection: 'row', gap: 12 },
   rankCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E8F0FF',
+    backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankText: { color: '#0A53B8', fontWeight: '800' },
+  rankText: { color: colors.brandDark, fontWeight: '800' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  name: { fontSize: 16, fontWeight: '800', color: '#111827', flexShrink: 1 },
-  detail: { color: '#6B7280', marginTop: 3, fontSize: 13 },
+  name: { fontSize: 16, fontWeight: '800', color: colors.ink, flexShrink: 1 },
+  detail: { color: colors.inkMuted, marginTop: 3, fontSize: 13 },
   partnerBadge: { backgroundColor: '#E7F5EC', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   partnerText: { color: '#17633A', fontSize: 11, fontWeight: '800' },
   availabilityBadge: {
@@ -430,7 +434,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -438,8 +442,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     flex: 1,
     minHeight: 40,
-    borderRadius: 8,
-    backgroundColor: '#0A84FF',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
   },

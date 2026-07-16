@@ -1,10 +1,14 @@
 // src/navigation/HealthNavigator.tsx
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MenstrualTrackerScreen from '../screens/MenstrualTrackerScreen';
 import HealthIntegrationsScreen from '../screens/HealthIntegrationsScreen';
 import { useUser } from '../context/UserContext';
+import SafeLayout from '../components/SafeLayout';
+import { Eyebrow } from '../components/Primitives';
+import { colors, radius, shadow, spacing, type } from '../theme';
 
 export type HealthRoutes = {
   HealthHome: undefined;
@@ -18,32 +22,26 @@ function Row({
   title,
   subtitle,
   onPress,
-  emoji,
+  icon,
 }: {
   title: string;
   subtitle?: string;
-  emoji: string;
+  icon: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 14,
-        borderBottomWidth: 1,
-        borderColor: '#eef2f7',
-      }}
+      style={styles.row}
     >
-      <Text style={{ fontSize: 22, marginRight: 12 }}>{emoji}</Text>
+      <View style={styles.icon}><Ionicons name={icon} size={22} color={colors.brandDark} /></View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontWeight: '700', fontSize: 16 }}>{title}</Text>
+        <Text style={styles.rowTitle}>{title}</Text>
         {subtitle ? (
-          <Text style={{ color: '#667085', marginTop: 2 }}>{subtitle}</Text>
+          <Text style={styles.rowSubtitle}>{subtitle}</Text>
         ) : null}
       </View>
-      <Text style={{ color: '#98a2b3', fontSize: 18 }}>›</Text>
+      <Ionicons name="chevron-forward" size={19} color={colors.inkMuted} />
     </Pressable>
   );
 }
@@ -53,44 +51,50 @@ function HealthHomeScreen({ navigation }: any) {
   const canAccessCycle = user?.gender === 'female';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 10 }}>Health</Text>
-        <View
-          style={{
-            backgroundColor: '#f8fafc',
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: '#e5e7eb',
-            paddingHorizontal: 14,
-          }}
-        >
+    <SafeLayout>
+      <View style={styles.content}>
+        <Eyebrow>HEALTH HUB</Eyebrow>
+        <Text style={styles.title}>Your health, connected</Text>
+        <Text style={styles.subtitle}>Bring your cycle and wearable insights together in one private view.</Text>
+        <View style={styles.card}>
           {canAccessCycle ? (
             <Row
-              emoji="◌"
+              icon="calendar-outline"
               title="Cycle tracker"
               subtitle="Log periods, ovulation, symptoms & predictions"
               onPress={() => navigation.navigate('Menstrual')}
             />
           ) : (
-            <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderColor: '#eef2f7' }}>
-              <Text style={{ fontWeight: '700', fontSize: 16 }}>Cycle tracker</Text>
-              <Text style={{ color: '#667085', marginTop: 2 }}>
+            <View style={styles.unavailable}>
+              <Text style={styles.rowTitle}>Cycle tracker</Text>
+              <Text style={styles.rowSubtitle}>
                 Available when Gender is set to Woman in Settings.
               </Text>
             </View>
           )}
           <Row
-            emoji="⌚️"
+            icon="watch-outline"
             title="Wearables"
             subtitle="Connect Apple Health / Garmin (coming soon)"
             onPress={() => navigation.navigate('Wearables')}
           />
         </View>
       </View>
-    </View>
+    </SafeLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, backgroundColor: colors.background },
+  title: { ...type.title, color: colors.ink, marginTop: spacing.xs },
+  subtitle: { ...type.body, color: colors.inkMuted, marginTop: spacing.sm, marginBottom: spacing.xl },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, ...shadow.card },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.lg, borderBottomWidth: 1, borderColor: colors.line },
+  icon: { width: 42, height: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft, marginRight: spacing.md },
+  rowTitle: { ...type.heading, color: colors.ink },
+  rowSubtitle: { ...type.caption, color: colors.inkMuted, marginTop: 2 },
+  unavailable: { paddingVertical: spacing.lg, borderBottomWidth: 1, borderColor: colors.line },
+});
 
 export default function HealthNavigator() {
   return (
