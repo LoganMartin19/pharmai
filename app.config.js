@@ -10,6 +10,7 @@ module.exports = {
   newArchEnabled: true,
   ios: {
     bundleIdentifier: 'Logan.PharmAI',
+    buildNumber: '23',
     supportsTablet: false,
     icon: './assets/icon.png',
     config: {
