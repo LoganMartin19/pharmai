@@ -14,8 +14,7 @@ import { useReminders } from '../context/RemindersContext';
 import { useUser } from '../context/UserContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, HomeTabParamList } from '../navigation/MainNavigator';
+import { RootStackParamList } from '../navigation/MainNavigator';
 import { Medication } from '../types/Medication';
 import SafeLayout from '../components/SafeLayout';
 import { auth, db } from '../firebase';
@@ -27,7 +26,6 @@ import { Eyebrow, StatusPill } from '../components/Primitives';
 import { colors } from '../theme';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
-type TabNav = BottomTabNavigationProp<HomeTabParamList>;
 
 type CareLink = {
   patientUid: string;
@@ -39,7 +37,6 @@ export default function HomeScreen() {
   const { user } = useUser();
   const { reminders, updateReminder } = useReminders();
   const stackNav = useNavigation<StackNav>(); // for stack screens (Scan, CarePatient, etc.)
-  const tabNav = useNavigation<TabNav>();     // for tab screens (Health)
 
   const [mode, setMode] = useState<'me' | 'care'>('me');
 
@@ -352,7 +349,7 @@ export default function HomeScreen() {
             ListHeaderComponent={
               <>
                 <Header />
-                <HomeHealthHeader onOpen={() => tabNav.navigate('Health')} />
+                <HomeHealthHeader onOpen={() => stackNav.navigate('Health')} />
               </>
             }
             contentContainerStyle={[styles.list, { paddingTop: 0 }]}

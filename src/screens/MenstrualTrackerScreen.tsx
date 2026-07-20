@@ -257,11 +257,7 @@ export default function MenstrualTrackerScreen() {
       : 'Low';
 
   const goToWearables = () => {
-    try {
-      navigation.navigate('Health', { screen: 'Wearables' });
-    } catch {
-      navigation.navigate('Wearables');
-    }
+    navigation.navigate('Wearables');
   };
 
   const goToSettings = () => {

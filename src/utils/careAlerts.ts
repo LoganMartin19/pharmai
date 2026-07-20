@@ -4,6 +4,13 @@ import type { Medication } from '../types/Medication';
 
 const REPORT_MISSED_DOSE_URL = 'https://reportmisseddose-b7oxnbcw3q-uc.a.run.app';
 
+function localDateISO(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function withTimeout<T>(p: Promise<T>, ms = 8000) {
   return Promise.race([
     p,
@@ -19,7 +26,7 @@ export async function pingCaregivers(med: Medication, doseIndex: number) {
     if (!u) return;
 
     const idToken = await u.getIdToken();
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = localDateISO();
 
     const resp = await withTimeout(
       fetch(REPORT_MISSED_DOSE_URL, {

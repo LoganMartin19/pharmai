@@ -43,7 +43,10 @@ const NHS_CONTENT_ROOTS = new Set([
 ]);
 
 function getNhsContentBaseUrl() {
-  const environment = (process.env.NHS_API_ENVIRONMENT || "production").toLowerCase();
+  // New NHS applications must be proven against Integration before their
+  // production application is enabled. Keep Integration as the safe default;
+  // set NHS_API_ENVIRONMENT=production only after NHS confirms promotion.
+  const environment = (process.env.NHS_API_ENVIRONMENT || "integration").toLowerCase();
   const baseUrl = NHS_CONTENT_BASE_URLS[environment];
   if (!baseUrl) throw new Error(`Unsupported NHS_API_ENVIRONMENT: ${environment}`);
   return { baseUrl, environment };
@@ -559,6 +562,7 @@ async function sendExpoPushNotifications(messages) {
   if (!messages.length) return { sent: 0, tickets: [] };
 
   const tickets = [];
+  let sent = 0;
   for (const chunk of chunkArray(messages, 100)) {
     const resp = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
@@ -576,9 +580,10 @@ async function sendExpoPushNotifications(messages) {
       continue;
     }
     tickets.push(json);
+    sent += chunk.length;
   }
 
-  return { sent: messages.length, tickets };
+  return { sent, tickets };
 }
 
 function safeAlertId(parts) {
@@ -667,10 +672,12 @@ async function fanOutMissedDoseAlert({ patientUid, medId, medName, doseDate, dos
         to: token,
         sound: "default",
         priority: "high",
+        channelId: "care-alerts",
         title: "Missed dose alert",
         body: `${patientName || "Patient"} missed ${medName || "a dose"}`,
         data: {
           type: "missedDose",
+          alertId,
           patientUid,
           medId,
           medName: medName || null,

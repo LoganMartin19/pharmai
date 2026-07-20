@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
@@ -59,7 +61,10 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [history, setHistory] = useState<ChatSummary[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const { width } = useWindowDimensions();
+  const showPermanentHistory = width >= 760;
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: true });
 
@@ -89,6 +94,7 @@ export default function ChatScreen() {
         return { role: data.role, content: data.content, nhsAttribution: data.nhsAttribution };
       }));
       setTimeout(scrollToEnd, 50);
+      setHistoryOpen(false);
     } catch (e) {
       console.warn('load conversation failed', e);
     }
@@ -153,42 +159,70 @@ export default function ChatScreen() {
     setChatId(undefined);
     setMessages([]);
     setInput('');
+    setHistoryOpen(false);
   };
+
+  const historyPanel = (
+    <View style={[styles.historyPanel, showPermanentHistory && styles.historyPanelPermanent]}>
+      <View style={styles.historyHeader}>
+        <Text style={styles.historyHeading}>Conversations</Text>
+        {!showPermanentHistory && (
+          <Pressable accessibilityLabel="Close chat history" onPress={() => setHistoryOpen(false)} style={styles.headerIconButton}>
+            <Ionicons name="close" size={22} color={colors.ink} />
+          </Pressable>
+        )}
+      </View>
+      <Pressable onPress={startNew} style={styles.newConversationButton}>
+        <Ionicons name="add" size={19} color={colors.white} />
+        <Text style={styles.newConversationText}>New conversation</Text>
+      </Pressable>
+      <ScrollView contentContainerStyle={styles.historyList} showsVerticalScrollIndicator={false}>
+        {history.length ? history.map((item) => (
+          <Pressable
+            key={item.id}
+            onPress={() => loadConversation(item)}
+            style={[styles.drawerHistoryItem, item.id === chatId && styles.drawerHistoryItemActive]}
+          >
+            <Ionicons name="chatbubble-outline" size={17} color={item.id === chatId ? colors.brand : colors.inkMuted} />
+            <View style={styles.drawerHistoryCopy}>
+              <Text style={[styles.drawerHistoryTitle, item.id === chatId && styles.drawerHistoryTitleActive]} numberOfLines={2}>{item.title}</Text>
+            </View>
+          </Pressable>
+        )) : (
+          <Text style={styles.emptyHistory}>Your previous medication conversations will appear here.</Text>
+        )}
+      </ScrollView>
+      <View style={styles.historyPrivacy}>
+        <Ionicons name="lock-closed-outline" size={15} color={colors.inkMuted} />
+        <Text style={styles.historyPrivacyText}>Private to your account</Text>
+      </View>
+    </View>
+  );
 
   return (
     <SafeLayout style={styles.safe}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.select({ ios: 'padding', android: undefined })}>
-        <FlatList
-          ref={listRef}
-          contentContainerStyle={styles.messages}
-          data={[...messages, ...(loading ? [{ role: 'assistant', content: '__typing__' } as Msg] : [])]}
-          keyExtractor={(_, i) => String(i)}
-          ListHeaderComponent={
-            messages.length === 0 ? (
-              <View style={styles.historyWrap}>
-                <Eyebrow>NHS-grounded support</Eyebrow>
-                <Text style={styles.title}>Ask PharmAI</Text>
-                <Text style={styles.subtitle}>Ask about timing, side effects, interactions, or what to check with a pharmacist. Medicine answers are grounded in retrieved NHS content.</Text>
-                {history.length ? (
-                  <>
-                    <Text style={styles.historyTitle}>Recent chats</Text>
-                    {history.map((item) => (
-                      <Pressable key={item.id} style={styles.historyItem} onPress={() => loadConversation(item)}>
-                        <Text style={styles.historyItemText} numberOfLines={2}>{item.title}</Text>
-                      </Pressable>
-                    ))}
-                  </>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.chatHeader}>
-                <Pressable onPress={startNew} style={styles.newButton}>
-                  <Text style={styles.newButtonText}>New chat</Text>
+        <View style={styles.workspace}>
+          {showPermanentHistory && historyPanel}
+          <View style={styles.chatPane}>
+            <View style={styles.topBar}>
+              {!showPermanentHistory && (
+                <Pressable accessibilityLabel="Open chat history" onPress={() => setHistoryOpen(true)} style={styles.headerIconButton}>
+                  <Ionicons name="menu" size={23} color={colors.ink} />
                 </Pressable>
-              </View>
-            )
-          }
-          renderItem={({ item }) => {
+              )}
+              <View style={styles.topBarCopy}><Text style={styles.topBarTitle}>Ask PharmAI</Text><Text style={styles.topBarSubtitle}>Medication support</Text></View>
+              <Pressable accessibilityLabel="Start a new chat" onPress={startNew} style={styles.headerIconButton}>
+                <Ionicons name="create-outline" size={21} color={colors.brand} />
+              </Pressable>
+            </View>
+            <FlatList
+              ref={listRef}
+              contentContainerStyle={styles.messages}
+              data={[...messages, ...(loading ? [{ role: 'assistant', content: '__typing__' } as Msg] : [])]}
+              keyExtractor={(_, i) => String(i)}
+              ListHeaderComponent={messages.length === 0 ? <View style={styles.emptyChat}><Eyebrow>NHS-grounded support</Eyebrow><Text style={styles.title}>What can I help with?</Text><Text style={styles.subtitle}>Ask about timing, side effects, interactions, or what to check with a pharmacist. Medicine answers are grounded in retrieved NHS content.</Text></View> : null}
+              renderItem={({ item }) => {
             if (item.content === '__typing__') {
               return (
                 <View style={[styles.bubble, styles.bot, styles.typing]}>
@@ -221,26 +255,21 @@ export default function ChatScreen() {
                 )}
               </View>
             );
-          }}
-        />
-
-        <View style={styles.inputRow}>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder="Ask something about your medication..."
-            placeholderTextColor={colors.inkMuted}
-            style={styles.input}
-            multiline
-          />
-          <Pressable style={[styles.send, loading && { opacity: 0.5 }]} onPress={() => send()} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color={colors.white}/>
-            ) : (
-              <Ionicons name="arrow-up" size={20} color={colors.white}/>
-            )}
-          </Pressable>
+              }}
+            />
+            <View style={styles.inputRow}>
+              <TextInput value={input} onChangeText={setInput} placeholder="Ask about your medication..." placeholderTextColor={colors.inkMuted} style={styles.input} multiline />
+              <Pressable style={[styles.send, loading && { opacity: 0.5 }]} onPress={() => send()} disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color={colors.white}/>
+                ) : (
+                  <Ionicons name="arrow-up" size={20} color={colors.white}/>
+                )}
+              </Pressable>
+            </View>
+          </View>
         </View>
+        {!showPermanentHistory && historyOpen && <View style={styles.drawerLayer}><Pressable style={styles.drawerBackdrop} onPress={() => setHistoryOpen(false)} />{historyPanel}</View>}
       </KeyboardAvoidingView>
     </SafeLayout>
   );
@@ -249,24 +278,17 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safe: { paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 },
   keyboard: { flex: 1 },
-  messages: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 18 },
+  workspace: { flex: 1, flexDirection: 'row', backgroundColor: colors.background },
+  chatPane: { flex: 1, minWidth: 0 },
+  topBar: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, backgroundColor: colors.surface },
+  topBarCopy: { flex: 1 },
+  topBarTitle: { ...type.heading, color: colors.ink },
+  topBarSubtitle: { ...type.caption, color: colors.inkMuted },
+  headerIconButton: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  messages: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 18, flexGrow: 1 },
   title: { ...type.hero, color: colors.ink, marginTop: 7, marginBottom: 7 },
   subtitle: { ...type.body, color: colors.inkMuted, marginBottom: 22 },
-  historyWrap: { paddingTop: 18 },
-  historyTitle: { color: '#111827', fontWeight: '900', marginBottom: 8 },
-  historyItem: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    padding: 14,
-    marginBottom: 8,
-    backgroundColor: colors.surface,
-    ...shadow.card,
-  },
-  historyItemText: { color: colors.ink, fontWeight: '700' },
-  chatHeader: { alignItems: 'flex-end', marginBottom: 8 },
-  newButton: { backgroundColor: colors.brandSoft, borderRadius: radius.pill, paddingHorizontal: 13, paddingVertical: 8 },
-  newButtonText: { color: colors.brandDark, fontWeight: '800' },
+  emptyChat: { paddingTop: 22, maxWidth: 620 },
   bubble: { marginBottom: 12, maxWidth: '86%', padding: 14, borderRadius: radius.lg, flexShrink: 1 },
   user: { alignSelf: 'flex-end', backgroundColor: colors.brand, borderBottomRightRadius: 6 },
   bot: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderBottomLeftRadius: 6 },
@@ -279,8 +301,25 @@ const styles = StyleSheet.create({
   nhsLogo: { width: 150, height: 48, alignSelf: 'flex-start' },
   nhsAttributionText: { color: '#475569', fontSize: 12, lineHeight: 17 },
   nhsSourceLink: { color: '#005EB8', fontWeight: '800', fontSize: 12, marginTop: 3, textDecorationLine: 'underline' },
-  inputRow: { flexDirection: 'row', padding: 12, paddingBottom: 90, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, backgroundColor: colors.background },
+  inputRow: { flexDirection: 'row', padding: 12, paddingBottom: Platform.OS === 'ios' ? 16 : 12, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, backgroundColor: colors.background },
   input: { flex: 1, minHeight: 48, maxHeight: 120, paddingHorizontal: 15, paddingVertical: 12, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderRadius: radius.lg, color: colors.ink },
   send: { width: 48, height: 48, borderRadius: radius.pill, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#fff', fontWeight: '800' },
+  drawerLayer: { ...StyleSheet.absoluteFillObject, zIndex: 20, flexDirection: 'row' },
+  drawerBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#11182766' },
+  historyPanel: { width: '84%', maxWidth: 320, height: '100%', zIndex: 21, backgroundColor: colors.surface, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.line, paddingTop: spacing.lg },
+  historyPanelPermanent: { width: 286, zIndex: 0 },
+  historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  historyHeading: { ...type.heading, color: colors.ink },
+  newConversationButton: { marginHorizontal: spacing.md, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  newConversationText: { ...type.label, color: colors.white },
+  historyList: { padding: spacing.md, gap: spacing.xs },
+  drawerHistoryItem: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md },
+  drawerHistoryItemActive: { backgroundColor: colors.brandSoft },
+  drawerHistoryCopy: { flex: 1 },
+  drawerHistoryTitle: { ...type.label, color: colors.inkMuted },
+  drawerHistoryTitleActive: { color: colors.brandDark },
+  emptyHistory: { ...type.body, color: colors.inkMuted, padding: spacing.sm },
+  historyPrivacy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, marginTop: 'auto', padding: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  historyPrivacyText: { ...type.caption, color: colors.inkMuted },
 });

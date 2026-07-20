@@ -24,6 +24,7 @@ import CareLinkScreen from '../screens/CareLinkScreen';
 import CarePatientScreen from '../screens/CarePatientScreen';
 import AdherenceAnalyticsScreen from '../screens/AdherenceAnalyticsScreen';
 import HealthNavigator from './HealthNavigator';
+import MoreScreen from '../screens/MoreScreen';
 import type { Medication } from '../types/Medication';
 import type { PillStyle } from '../types/PillStyle';
 import type { Pharmacy } from '../utils/pharmacySearch';
@@ -54,16 +55,17 @@ export type RootStackParamList = {
   Chat: { contextMedication?: Medication } | undefined;
   CareLink: undefined; // NEW
   CarePatient: { patientUid: string; displayName?: string | null };
+  Refills: undefined;
+  Pharmacy: undefined;
+  Settings: undefined;
+  Health: undefined;
 };
 
 export type HomeTabParamList = {
   Home: undefined;
-  Reminders: undefined;
-  Refills: undefined;
-  Pharmacy: undefined;
-  Chat: undefined;
-  Settings: undefined;
-  Health: undefined;
+  Medications: undefined;
+  ScanAction: undefined;
+  More: undefined;
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -88,14 +90,14 @@ function HomeTab() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
-        const icon = route.name === 'Home' ? 'home' : route.name === 'Reminders' ? 'calendar' : route.name === 'Refills' ? 'repeat' : route.name === 'Pharmacy' ? 'medical' : route.name === 'Chat' ? 'chatbubble-ellipses' : route.name === 'Settings' ? 'person-circle' : 'heart';
+        const icon = route.name === 'Home' ? 'home' : route.name === 'Medications' ? 'medical' : route.name === 'ScanAction' ? 'scan-circle' : 'ellipsis-horizontal-circle';
         return {
           headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name={icon} size={size ?? 22} color={color} />,
           tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: '#7A8B85',
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2 },
-          tabBarStyle: { position: 'absolute', left: 12, right: 12, bottom: 8, height: 68, paddingTop: 8, paddingBottom: 8, borderTopWidth: 0, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.card },
+          tabBarInactiveTintColor: '#8A94A6',
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 1 },
+          tabBarStyle: { position: 'absolute', left: 18, right: 18, bottom: 10, height: 64, paddingTop: 7, paddingBottom: 7, borderTopWidth: 0, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.card },
         };
       }}
     >
@@ -103,12 +105,19 @@ function HomeTab() {
         name="Home"
         component={HomeScreen}
       />
-      <Tab.Screen name="Reminders" component={RemindersScreen} />
-      <Tab.Screen name="Refills" component={RefillScreen} />
-      <Tab.Screen name="Pharmacy" component={PharmacyScreen} />
-      <Tab.Screen name="Chat" component={ChatScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
-      <Tab.Screen name="Health" component={HealthNavigator} />
+      <Tab.Screen name="Medications" component={RemindersScreen} />
+      <Tab.Screen
+        name="ScanAction"
+        component={MoreScreen}
+        options={{ title: 'Scan' }}
+        listeners={({ navigation }) => ({
+          tabPress: (event) => {
+            event.preventDefault();
+            navigation.getParent()?.navigate('Scan');
+          },
+        })}
+      />
+      <Tab.Screen name="More" component={MoreScreen} />
     </Tab.Navigator>
   );
 }
@@ -140,6 +149,10 @@ export default function MainNavigator() {
       <RootStack.Screen name="AddReminder" component={AddReminderScreen} />
       <RootStack.Screen name="AdherenceAnalytics" component={AdherenceAnalyticsScreen} />
       <RootStack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+      <RootStack.Screen name="Refills" component={RefillScreen} options={{ title: 'Refills' }} />
+      <RootStack.Screen name="Pharmacy" component={PharmacyScreen} options={{ title: 'Pharmacies' }} />
+      <RootStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <RootStack.Screen name="Health" component={HealthNavigator} options={{ headerShown: false }} />
       <RootStack.Screen
         name="CareLink"
         component={CareLinkScreen}

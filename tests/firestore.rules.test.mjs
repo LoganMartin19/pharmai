@@ -45,6 +45,58 @@ describe('patient isolation', () => {
   });
 });
 
+describe('care notifications', () => {
+  test('patient can schedule own care alert but another user cannot', async () => {
+    const patientDb = env.authenticatedContext('patient-a').firestore();
+    const otherDb = env.authenticatedContext('patient-b').firestore();
+    const payload = {
+      medId: 'med-1',
+      doseIndex: 0,
+      doseDate: '2026-07-20',
+      dueAt: Timestamp.fromMillis(Date.now() + 60_000),
+    };
+
+    await assertSucceeds(
+      setDoc(doc(patientDb, 'users/patient-a/carePendingAlerts/med-1_0'), payload)
+    );
+    await assertFails(
+      setDoc(doc(otherDb, 'users/patient-a/carePendingAlerts/med-1_1'), payload)
+    );
+  });
+
+  test('caregiver can read linked patient medication but cannot alter it', async () => {
+    await seed('users/patient-a/careLinks/caregiver-a', { role: 'caregiver' });
+    await seed('users/patient-a/reminders/med-1', { name: 'Medicine' });
+    const caregiverDb = env.authenticatedContext('caregiver-a').firestore();
+
+    await assertSucceeds(getDoc(doc(caregiverDb, 'users/patient-a/reminders/med-1')));
+    await assertFails(
+      setDoc(doc(caregiverDb, 'users/patient-a/reminders/med-1'), { name: 'Changed' })
+    );
+  });
+
+  test('caregiver can read and acknowledge only their own inbox alert', async () => {
+    await seed('users/caregiver-a/inbox/alert-1', { unread: true, delivered: false });
+    const caregiverDb = env.authenticatedContext('caregiver-a').firestore();
+    const otherDb = env.authenticatedContext('caregiver-b').firestore();
+    const alertRef = doc(caregiverDb, 'users/caregiver-a/inbox/alert-1');
+
+    await assertSucceeds(getDoc(alertRef));
+    await assertSucceeds(setDoc(alertRef, { unread: false, delivered: true }, { merge: true }));
+    await assertFails(getDoc(doc(otherDb, 'users/caregiver-a/inbox/alert-1')));
+  });
+
+  test('client cannot manufacture a caregiver inbox alert', async () => {
+    const caregiverDb = env.authenticatedContext('caregiver-a').firestore();
+    await assertFails(
+      setDoc(doc(caregiverDb, 'users/caregiver-a/inbox/fake-alert'), {
+        type: 'missedDose',
+        unread: true,
+      })
+    );
+  });
+});
+
 describe('pharmacy tenant access', () => {
   test('member collection-group lookup only returns the signed-in membership', async () => {
     await seed('pharmacyOrganisations/org-a/members/staff-a', { uid: 'staff-a', active: true, role: 'pharmacist' });
