@@ -32,14 +32,19 @@ export type NhsMedicineInformation = {
   sections: NhsMedicineSection[];
 };
 
+const NHS_MEDICINE_SLUG_ALIASES: Record<string, string> = {
+  paracetamol: 'paracetamol-for-adults',
+};
+
 export function medicineNameToNhsSlug(name: string) {
-  return name
+  const slug = name
     .toLowerCase()
     .replace(/\([^)]*\)/g, ' ')
     .split(/\b\d+(?:\.\d+)?\s*(?:micrograms?|mcg|milligrams?|mg|grams?|g|ml|%)\b/i)[0]
     .replace(/\b(?:tablets?|capsules?|oral|solution|suspension|cream|ointment|gel|injection|inhaler|spray)\b.*$/i, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+  return NHS_MEDICINE_SLUG_ALIASES[slug] || slug;
 }
 
 function htmlToText(value: string) {

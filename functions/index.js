@@ -24,6 +24,12 @@ const NHS_CONTENT_BASE_URLS = {
   sandbox: "https://sandbox.api.service.nhs.uk/nhs-website-content/",
 };
 
+const NHS_API_SECRETS = ["NHS_API_KEY", "NHS_API_KEY_PRODUCTION"];
+
+const NHS_MEDICINE_SLUG_ALIASES = {
+  paracetamol: "paracetamol-for-adults",
+};
+
 const NHS_CONTENT_ROOTS = new Set([
   "baby",
   "conditions",
@@ -43,13 +49,26 @@ const NHS_CONTENT_ROOTS = new Set([
 ]);
 
 function getNhsContentBaseUrl() {
-  // New NHS applications must be proven against Integration before their
-  // production application is enabled. Keep Integration as the safe default;
-  // set NHS_API_ENVIRONMENT=production only after NHS confirms promotion.
-  const environment = (process.env.NHS_API_ENVIRONMENT || "integration").toLowerCase();
+  // Production access is enabled for PharmAI. Integration remains selectable
+  // for explicit pre-production checks via NHS_API_ENVIRONMENT=integration.
+  const environment = (process.env.NHS_API_ENVIRONMENT || "production").toLowerCase();
   const baseUrl = NHS_CONTENT_BASE_URLS[environment];
   if (!baseUrl) throw new Error(`Unsupported NHS_API_ENVIRONMENT: ${environment}`);
   return { baseUrl, environment };
+}
+
+function getNhsApiKey(environment) {
+  if (environment === "sandbox") return null;
+  const key =
+    environment === "production"
+      ? process.env.NHS_API_KEY_PRODUCTION
+      : process.env.NHS_API_KEY;
+  if (!key) {
+    const secretName =
+      environment === "production" ? "NHS_API_KEY_PRODUCTION" : "NHS_API_KEY";
+    throw new Error(`${secretName} is not configured`);
+  }
+  return key;
 }
 
 function normaliseNhsContentPath(input) {
@@ -58,6 +77,13 @@ function normaliseNhsContentPath(input) {
   if (!path || !NHS_CONTENT_ROOTS.has(root) || path.includes("..")) return null;
   if (!/^[a-z0-9][a-z0-9\-/]*$/i.test(path)) return null;
   return `${path}/`;
+}
+
+function resolveKnownNhsMedicinePath(path) {
+  const match = /^medicines\/([^/]+)\/$/.exec(path);
+  if (!match) return path;
+  const resolvedSlug = NHS_MEDICINE_SLUG_ALIASES[match[1]] || match[1];
+  return `medicines/${resolvedSlug}/`;
 }
 
 async function requireFirebaseUser(req) {
@@ -95,7 +121,6 @@ function collectNhsText(value, output = [], depth = 0) {
 }
 
 async function getNhsMedicineGrounding(client, messages) {
-  if (!process.env.NHS_API_KEY) return null;
   const recentText = messages
     .slice(-4)
     .map((message) => `${message.role}: ${String(message.content || "")}`)
@@ -125,14 +150,16 @@ async function getNhsMedicineGrounding(client, messages) {
   } catch {
     return null;
   }
-  const path = normaliseNhsContentPath(`medicines/${parsed.slug || ""}`);
+  const rawPath = normaliseNhsContentPath(`medicines/${parsed.slug || ""}`);
+  const path = rawPath ? resolveKnownNhsMedicinePath(rawPath) : null;
   if (!parsed.medicine || !path || path === "medicines/") return null;
 
   const { baseUrl, environment } = getNhsContentBaseUrl();
+  const apiKey = getNhsApiKey(environment);
   const url = new URL(path, baseUrl);
   url.searchParams.set("modules", "true");
   const upstream = await fetch(url, {
-    headers: { Accept: "application/json", apikey: process.env.NHS_API_KEY },
+    headers: { Accept: "application/json", ...(apiKey ? { apikey: apiKey } : {}) },
     signal: AbortSignal.timeout(15000),
   });
   if (!upstream.ok) {
@@ -149,7 +176,7 @@ async function getNhsMedicineGrounding(client, messages) {
 /* =======================================================================================
  * NHS Website Content API v2
  * ======================================================================================= */
-exports.nhsContent = onRequest({ secrets: ["NHS_API_KEY"] }, (req, res) => {
+exports.nhsContent = onRequest({ secrets: NHS_API_SECRETS }, (req, res) => {
   corsHandler(req, res, async () => {
     try {
       if (req.method !== "GET") return res.status(405).send("Method Not Allowed");
@@ -157,10 +184,12 @@ exports.nhsContent = onRequest({ secrets: ["NHS_API_KEY"] }, (req, res) => {
       const user = await requireFirebaseUser(req);
       if (!user) return res.status(401).json({ error: "unauthorized" });
 
-      const path = normaliseNhsContentPath(req.query.path);
-      if (!path) return res.status(400).json({ error: "invalid_nhs_content_path" });
+      const requestedPath = normaliseNhsContentPath(req.query.path);
+      if (!requestedPath) return res.status(400).json({ error: "invalid_nhs_content_path" });
+      const path = resolveKnownNhsMedicinePath(requestedPath);
 
       const { baseUrl, environment } = getNhsContentBaseUrl();
+      const apiKey = getNhsApiKey(environment);
       const url = new URL(path, baseUrl);
       for (const [key, value] of Object.entries(req.query)) {
         if (key === "path" || key.toLowerCase() === "apikey") continue;
@@ -169,10 +198,7 @@ exports.nhsContent = onRequest({ secrets: ["NHS_API_KEY"] }, (req, res) => {
       }
 
       const headers = { Accept: "application/json" };
-      if (environment !== "sandbox") {
-        if (!process.env.NHS_API_KEY) throw new Error("NHS_API_KEY is not configured");
-        headers.apikey = process.env.NHS_API_KEY;
-      }
+      if (apiKey) headers.apikey = apiKey;
 
       const upstream = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
       const body = await upstream.json().catch(() => null);
@@ -194,9 +220,11 @@ exports.nhsContent = onRequest({ secrets: ["NHS_API_KEY"] }, (req, res) => {
 /* =======================================================================================
  * Chat (unchanged)
  * ======================================================================================= */
-exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, res) => {
-  corsHandler(req, res, async () => {
-    try {
+exports.chat = onRequest(
+  { secrets: ["OPENAI_API_KEY", ...NHS_API_SECRETS] },
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      try {
       if (req.method !== "POST") {
         return res.status(405).send("Method Not Allowed");
       }
@@ -298,16 +326,17 @@ exports.chat = onRequest({ secrets: ["OPENAI_API_KEY", "NHS_API_KEY"] }, (req, r
       await batch.commit();
 
       return res.json({ reply, chatId: createdId, nhsAttribution });
-    } catch (err) {
-      console.error("LLM error:", err);
-      const status =
-        (err && typeof err.status === "number" && err.status) ||
-        (err && err.code === "insufficient_quota" && 402) ||
-        500;
-      return res.status(status).json({ error: "llm_error" });
-    }
-  });
-});
+      } catch (err) {
+        console.error("LLM error:", err);
+        const status =
+          (err && typeof err.status === "number" && err.status) ||
+          (err && err.code === "insufficient_quota" && 402) ||
+          500;
+        return res.status(status).json({ error: "llm_error" });
+      }
+    });
+  }
+);
 
 /* =======================================================================================
  * PharmAI internal administration
